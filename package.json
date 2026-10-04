@@ -4,8 +4,7 @@
   "description": "F-LINK - Forward Logistics Intelligence & Network",
   "main": "server/server.js",
   "scripts": {
-    "install:all": "npm --prefix server install && npm --prefix client install",
-    "build": "npm --prefix client install && npm --prefix client run build && npm --prefix server install",
+    "build": "npm --prefix client install --no-save && npm --prefix client run build && npm --prefix server install --no-save",
     "start": "node server/server.js"
   },
   "engines": {
