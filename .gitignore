@@ -10,7 +10,9 @@ client/dist/
 */.env
 *.env.local
 
-# SQLite temporary/journal files
+# SQLite database files
+*.db
+*.sqlite
 *.db-journal
 *.sqlite-journal
 *.db-wal
@@ -24,3 +26,5 @@ Thumbs.db
 # Editor files
 .vscode/
 .idea/
+**/.vite/
+*.bak
