@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Production build artifacts
+client/dist/
+
+# Environment variables
+.env
+*/.env
+*.env.local
+
+# SQLite temporary/journal files
+*.db-journal
+*.sqlite-journal
+*.db-wal
+*.db-shm
+
+# OS files
+.DS_Store
+Thumbs.db
+*.log
+
+# Editor files
+.vscode/
+.idea/
