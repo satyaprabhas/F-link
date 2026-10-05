@@ -61,6 +61,10 @@ export default function WeatherRoutePage() {
   const [selectedDepotId, setSelectedDepotId] = useState(initialPostId === 'LOC-FWA' ? 'LOC-BRAVO' : 'LOC-ALPHA');
   const [selectedRouteId, setSelectedRouteId] = useState(initialPost.recommendedRouteId || 'R-03');
   
+  // Combined Multi-Post Route state (Logistics Officer can combine nearby at-risk posts)
+  const [isCombinedRoute, setIsCombinedRoute] = useState(false);
+  const [secondaryPostId, setSecondaryPostId] = useState(initialPostId === 'LOC-FWE' ? 'LOC-FWC' : 'LOC-FWE');
+  
   // Pre-pone departure date state
   const [preponedDate, setPreponedDate] = useState(() => {
     const d = new Date();
@@ -105,6 +109,8 @@ export default function WeatherRoutePage() {
     setSelectedRouteId(postObj.recommendedRouteId || 'R-01');
     setDirectiveDispatched(false);
     setStatusNotice(null);
+    // Suggest nearby secondary post
+    setSecondaryPostId(postId === 'LOC-FWE' ? 'LOC-FWC' : postId === 'LOC-FWD' ? 'LOC-FWE' : 'LOC-FWE');
     // Suggest depot based on post
     if (postId === 'LOC-FWA') {
       setSelectedDepotId('LOC-BRAVO');
@@ -119,6 +125,7 @@ export default function WeatherRoutePage() {
       setIsSubmitting(true);
       setStatusNotice(null);
       const postObj = FORWARD_POSTS.find(p => p.id === selectedPostId) || FORWARD_POSTS[0];
+      const secPostObj = isCombinedRoute ? (FORWARD_POSTS.find(p => p.id === secondaryPostId) || null) : null;
       const depotName = selectedDepotId === 'LOC-ALPHA' ? 'Depot Alpha' : 'Depot Bravo';
       const corridorName = getCorridorName(selectedPostId, selectedRouteId);
       
@@ -127,12 +134,18 @@ export default function WeatherRoutePage() {
         depot_id: selectedDepotId,
         route_id: selectedRouteId,
         planned_date: preponedDate,
-        notes: `Logistics Directive for ${postObj.name}: Dispatched from ${depotName} via ${corridorName}. Departure pre-poned to ${preponedDate} to evade ${postObj.hazard}.`
+        is_combined: isCombinedRoute,
+        secondary_post_id: isCombinedRoute ? secondaryPostId : null,
+        notes: isCombinedRoute && secPostObj
+          ? `Combined Directive: Stop 1 -> ${postObj.name}, Stop 2 -> ${secPostObj.name}. Dispatched from ${depotName} via ${corridorName}. Multi-post resupply mission.`
+          : `Logistics Directive for ${postObj.name}: Dispatched from ${depotName} via ${corridorName}. Departure pre-poned to ${preponedDate} to evade ${postObj.hazard}.`
       });
 
       setDirectiveDispatched(true);
       setDispatchedDetails({
         post: postObj,
+        secondaryPost: secPostObj,
+        isCombined: isCombinedRoute,
         depotName,
         routeId: selectedRouteId,
         corridorName,
@@ -141,8 +154,12 @@ export default function WeatherRoutePage() {
       });
       setStatusNotice({
         type: 'success',
-        title: 'Directive Passed ONLY to Supply Portal!',
-        message: `Successfully passed resupply directive for ${postObj.name} exclusively to the Supply Portal. Origin: ${depotName} • Corridor: ${corridorName} • Departure Date: ${preponedDate}. This directive will only reach the Transportation Portal after the Supply Officer enters and allots rations.`
+        title: isCombinedRoute 
+          ? 'Combined Multi-Post Directive Passed to Supply Portal!' 
+          : 'Directive Passed ONLY to Supply Portal!',
+        message: isCombinedRoute && secPostObj
+          ? `Successfully approved combined multi-stop corridor linking ${postObj.name} (Stop 1) and ${secPostObj.name} (Stop 2). Both outposts evaluated at risk. Passed to Supply Portal to allocate rations for BOTH outposts.`
+          : `Successfully passed resupply directive for ${postObj.name} exclusively to the Supply Portal. Origin: ${depotName} • Corridor: ${corridorName} • Departure Date: ${preponedDate}. This directive will only reach the Transportation Portal after the Supply Officer enters and allots rations.`
       });
       if (refreshData) refreshData();
     } catch (err) {
@@ -157,6 +174,7 @@ export default function WeatherRoutePage() {
   };
 
   const currentPost = FORWARD_POSTS.find(p => p.id === selectedPostId) || FORWARD_POSTS[0];
+  const secondaryPost = isCombinedRoute ? (FORWARD_POSTS.find(p => p.id === secondaryPostId) || null) : null;
 
   return (
     <div className="space-y-6">
@@ -338,6 +356,73 @@ export default function WeatherRoutePage() {
           </div>
 
         </div>
+
+        {/* ── OPTION: COMBINED MULTI-POST CORRIDOR (Nearby at-risk posts) ── */}
+        <div className="mt-4 p-4 rounded-xl border border-teal-300 bg-teal-50/80">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div className="flex items-start gap-2.5">
+              <input 
+                type="checkbox"
+                id="combinedRouteToggle"
+                checked={isCombinedRoute}
+                onChange={(e) => {
+                  setIsCombinedRoute(e.target.checked);
+                  setDirectiveDispatched(false);
+                }}
+                className="mt-1 w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500 cursor-pointer"
+              />
+              <div>
+                <label htmlFor="combinedRouteToggle" className="text-xs font-black text-slate-900 cursor-pointer flex items-center gap-1.5">
+                  <RouteIcon size={15} className="text-teal-700" />
+                  Combine with Nearby Forward Post (Multi-Stop Resupply Route)
+                </label>
+                <p className="text-[11px] text-slate-600 mt-0.5">
+                  Select an adjacent forward outpost that is also at risk. Approving a single multi-stop corridor coordinates convoys and evades storm perimeters for both outposts.
+                </p>
+              </div>
+            </div>
+
+            {isCombinedRoute && (
+              <div className="w-full sm:w-auto flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-700 whitespace-nowrap">Stop 2 (Nearby Post):</span>
+                <select
+                  value={secondaryPostId}
+                  onChange={(e) => {
+                    setSecondaryPostId(e.target.value);
+                    setDirectiveDispatched(false);
+                  }}
+                  className="bg-white border border-teal-500 rounded-lg p-1.5 text-xs text-slate-900 font-bold focus:ring-1 focus:ring-teal-700 shadow-2xs"
+                >
+                  {FORWARD_POSTS.filter(p => p.id !== selectedPostId).map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.shortName} ({p.priority} • {p.days}d) - {p.sector}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {isCombinedRoute && secondaryPost && (
+            <div className="mt-3 pt-3 border-t border-teal-200/80 grid grid-cols-1 md:grid-cols-3 gap-2.5 text-xs">
+              <div className="bg-white p-2.5 rounded-lg border border-teal-200">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Stop 1 (Primary)</span>
+                <span className="font-extrabold text-slate-900">{currentPost.shortName}</span>
+                <span className="text-[10px] text-red-600 font-bold ml-1.5">({currentPost.days}d left • {currentPost.priority})</span>
+              </div>
+              <div className="bg-white p-2.5 rounded-lg border border-teal-200">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Stop 2 (Nearby Linked)</span>
+                <span className="font-extrabold text-slate-900">{secondaryPost.shortName}</span>
+                <span className="text-[10px] text-orange-600 font-bold ml-1.5">({secondaryPost.days}d left • {secondaryPost.priority})</span>
+              </div>
+              <div className="bg-white p-2.5 rounded-lg border border-teal-200">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Mission Synergy</span>
+                <span className="font-bold text-teal-800">Ridge Link (+48 km)</span>
+                <div className="text-[10px] text-slate-500">Both posts at risk — combined directive issued</div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── STEP 2: DYNAMIC TACTICAL ROUTE MAP CANVAS ── */}
@@ -352,6 +437,9 @@ export default function WeatherRoutePage() {
           depotName={selectedDepotId === 'LOC-ALPHA' ? 'Depot Alpha' : 'Depot Bravo'}
           postName={currentPost.shortName}
           selectedPostId={selectedPostId}
+          isCombinedRoute={isCombinedRoute}
+          secondaryPostId={secondaryPostId}
+          secondaryPostName={secondaryPost?.shortName}
         />
       </div>
 
@@ -416,7 +504,9 @@ export default function WeatherRoutePage() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-base text-slate-900">
-                  Transmit Logistics Resupply Directive for {currentPost.shortName}
+                  {isCombinedRoute && secondaryPost
+                    ? `Transmit Combined Multi-Post Directive (${currentPost.shortName} + ${secondaryPost.shortName})`
+                    : `Transmit Logistics Resupply Directive for ${currentPost.shortName}`}
                 </span>
                 {directiveDispatched && (
                   <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-extrabold uppercase rounded-full">
@@ -425,7 +515,15 @@ export default function WeatherRoutePage() {
                 )}
               </div>
               <div className="text-xs text-slate-600 mt-0.5">
-                Target Post: <strong className="text-slate-900">{currentPost.name}</strong> • Depot: <strong className="text-slate-900">{selectedDepotId === 'LOC-ALPHA' ? 'Depot Alpha' : 'Depot Bravo'}</strong> • Corridor: <strong className="text-teal-800">{getCorridorName(selectedPostId, selectedRouteId)}</strong> • Date: <strong className="font-mono text-slate-900">{preponedDate}</strong>
+                {isCombinedRoute && secondaryPost ? (
+                  <span>
+                    Multi-Stop Corridor: <strong className="text-slate-900">Stop 1: {currentPost.name}</strong> ➔ <strong className="text-slate-900">Stop 2: {secondaryPost.name}</strong> • Depot: <strong className="text-slate-900">{selectedDepotId === 'LOC-ALPHA' ? 'Depot Alpha' : 'Depot Bravo'}</strong> • Corridor: <strong className="text-teal-800">{getCorridorName(selectedPostId, selectedRouteId)}</strong> • Date: <strong className="font-mono text-slate-900">{preponedDate}</strong>
+                  </span>
+                ) : (
+                  <span>
+                    Target Post: <strong className="text-slate-900">{currentPost.name}</strong> • Depot: <strong className="text-slate-900">{selectedDepotId === 'LOC-ALPHA' ? 'Depot Alpha' : 'Depot Bravo'}</strong> • Corridor: <strong className="text-teal-800">{getCorridorName(selectedPostId, selectedRouteId)}</strong> • Date: <strong className="font-mono text-slate-900">{preponedDate}</strong>
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -448,11 +546,15 @@ export default function WeatherRoutePage() {
               ) : (
                 <Send size={15} />
               )}
-              {isSubmitting
-                ? 'Passing & Updating Supply Portal...'
-                : directiveDispatched
-                ? '✓ Passed to Supply Portal (Click to Re-Submit)'
-                : 'Approve Directive & Forward to Supply Officer'}
+              <span>
+                {isSubmitting 
+                  ? 'Transmitting Directive...' 
+                  : directiveDispatched 
+                  ? '✓ Directive Dispatched (Click to Re-send)' 
+                  : isCombinedRoute && secondaryPost
+                  ? 'Approve Combined Multi-Post Route ➔'
+                  : 'Approve Route & Pass Directive to Supply Portal ➔'}
+              </span>
             </button>
           </div>
         </div>

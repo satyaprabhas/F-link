@@ -1,7 +1,7 @@
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '') + '/api';
 
 const getHeaders = () => {
-  const token = sessionStorage.getItem('flink_token') || localStorage.getItem('flink_token');
+  const token = sessionStorage.getItem('flink_token');
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {})

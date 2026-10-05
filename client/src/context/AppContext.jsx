@@ -12,11 +12,15 @@ export const AppProvider = ({ children }) => {
   const [connectivity, setConnectivity] = useState('Online');
   const [lastSync, setLastSync] = useState(new Date().toISOString());
 
-  // Check existing session on mount (supports both sessionStorage and localStorage)
+  // Check existing session on mount (Strictly sessionStorage so new window/tab opens login portal first)
   useEffect(() => {
     try {
-      const token = sessionStorage.getItem('flink_token') || localStorage.getItem('flink_token');
-      const savedUser = sessionStorage.getItem('flink_user') || localStorage.getItem('flink_user');
+      // Clear legacy persistent localStorage to prevent session leakage across tabs/persons
+      localStorage.removeItem('flink_token');
+      localStorage.removeItem('flink_user');
+
+      const token = sessionStorage.getItem('flink_token');
+      const savedUser = sessionStorage.getItem('flink_user');
       if (token && savedUser) {
         setUser(JSON.parse(savedUser));
         setIsAuthenticated(true);
@@ -27,8 +31,6 @@ export const AppProvider = ({ children }) => {
     } catch {
       sessionStorage.removeItem('flink_token');
       sessionStorage.removeItem('flink_user');
-      localStorage.removeItem('flink_token');
-      localStorage.removeItem('flink_user');
       setIsAuthenticated(false);
       setUser(null);
     } finally {
@@ -39,12 +41,10 @@ export const AppProvider = ({ children }) => {
   const login = async (credentialsOrUser, explicitToken) => {
     if (explicitToken) {
       sessionStorage.setItem('flink_token', explicitToken);
-      localStorage.setItem('flink_token', explicitToken);
     }
     if (credentialsOrUser && credentialsOrUser.role && !credentialsOrUser.password) {
       const userStr = JSON.stringify(credentialsOrUser);
       sessionStorage.setItem('flink_user', userStr);
-      localStorage.setItem('flink_user', userStr);
       setUser(credentialsOrUser);
       setIsAuthenticated(true);
       return;
@@ -53,8 +53,6 @@ export const AppProvider = ({ children }) => {
     const userStr = JSON.stringify(userData);
     sessionStorage.setItem('flink_token', token);
     sessionStorage.setItem('flink_user', userStr);
-    localStorage.setItem('flink_token', token);
-    localStorage.setItem('flink_user', userStr);
     setUser(userData);
     setIsAuthenticated(true);
   };
@@ -62,11 +60,9 @@ export const AppProvider = ({ children }) => {
   const updateUser = (updatedUser, explicitToken) => {
     if (explicitToken) {
       sessionStorage.setItem('flink_token', explicitToken);
-      localStorage.setItem('flink_token', explicitToken);
     }
     const userStr = JSON.stringify(updatedUser);
     sessionStorage.setItem('flink_user', userStr);
-    localStorage.setItem('flink_user', userStr);
     setUser(updatedUser);
   };
 

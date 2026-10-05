@@ -74,6 +74,53 @@ export default function TransportPage() {
     }
   };
 
+  const getVehicleTerrainSuitability = (vehicleId) => {
+    switch (vehicleId) {
+      case 'VH-01':
+        return {
+          short: 'Mountain 6x6 • All-Terrain',
+          badge: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+          desc: 'Heavy Tactical 6x6 rated for steep rocky mountain grades, desert sand, and heavy convoy payloads up to 15,000 kg.'
+        };
+      case 'VH-02':
+        return {
+          short: 'Mountain 4x4 • Tactical Ridge',
+          badge: 'bg-teal-50 text-teal-800 border-teal-200',
+          desc: 'Medium Tactical 4x4 high-clearance; certified for mountain pass switchbacks, dirt tracks & sand dunes up to 8,000 kg.'
+        };
+      case 'VH-03':
+        return {
+          short: 'Mountain Agile 4x4 • Sand Dunes',
+          badge: 'bg-sky-50 text-sky-800 border-sky-200',
+          desc: 'Lightweight high-mobility 4x4; traverses tight mountain switchbacks & rapid response rough ground up to 3,000 kg.'
+        };
+      case 'VH-04':
+        return {
+          short: 'Highway Plains Arterial Only',
+          badge: 'bg-slate-100 text-slate-800 border-slate-300',
+          desc: 'Heavy 4x2 highway transport for flat paved arterial corridors; restricted from steep rocky passes.'
+        };
+      case 'VH-05':
+        return {
+          short: 'Medical • All Paved Corridors',
+          badge: 'bg-rose-50 text-rose-800 border-rose-200',
+          desc: 'All-weather medical vehicle with suspension stabilization.'
+        };
+      case 'VH-06':
+        return {
+          short: 'Fuel Tanker • Arterial Staging',
+          badge: 'bg-amber-50 text-amber-800 border-amber-200',
+          desc: 'High-capacity liquid fuel tanker for primary supply corridors.'
+        };
+      default:
+        return {
+          short: 'Tactical All-Terrain',
+          badge: 'bg-slate-100 text-slate-700 border-slate-200',
+          desc: 'General tactical transport asset.'
+        };
+    }
+  };
+
   const openCreateModal = () => {
     setModalMode('create');
     setFormData({ source_id: '', destination_id: '', items: '{"Food": 1200, "Water": 2400}', planned_date: new Date().toISOString().split('T')[0], vehicle_id: '', route_id: '', priority: 'Normal', notes: '', status: 'Planned' });
@@ -269,6 +316,20 @@ export default function TransportPage() {
                   <span className="flex items-center gap-1 text-slate-400"><MapPin size={13}/> Station:</span>
                   <span className="font-semibold text-slate-700 truncate max-w-[130px]">{v.location_name || 'Forward Staging'}</span>
                 </div>
+
+                <div className="border-t border-slate-100 pt-2 space-y-1">
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="flex items-center gap-1 text-slate-400 font-medium">
+                      <Navigation size={12} className="text-teal-600" /> Terrain Fit:
+                    </span>
+                    <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded border ${getVehicleTerrainSuitability(v.id).badge}`}>
+                      {getVehicleTerrainSuitability(v.id).short.split('•')[0].trim()}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-mono">
+                    {getVehicleTerrainSuitability(v.id).short}
+                  </div>
+                </div>
               </div>
             </div>
           ))}
@@ -313,7 +374,14 @@ export default function TransportPage() {
                   <tr key={d.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="py-3 px-4 font-mono font-bold text-xs text-teal-800">{d.id}</td>
                     <td className="py-3 px-4">
-                      <div className="font-bold text-slate-900">{d.source_name} ➔ {d.dest_name}</div>
+                      <div className="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                        <span>{d.source_name} ➔ {d.dest_name}</span>
+                        {d.notes && d.notes.includes('[COMBINED_ROUTE:') && (
+                          <span className="px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-300 text-[10px] font-black uppercase tracking-wider">
+                            Multi-Stop Corridor
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-3">
                       <div className="font-semibold text-slate-800 text-xs">{d.route_name || d.route_id}</div>
@@ -339,7 +407,12 @@ export default function TransportPage() {
                       })()}
                     </td>
                     <td className="py-3 px-3 text-xs font-mono text-slate-700">{new Date(d.planned_date).toLocaleDateString()}</td>
-                    <td className="py-3 px-3 text-xs text-slate-700">{d.vehicle_name || d.vehicle_id}</td>
+                    <td className="py-3 px-3 text-xs text-slate-700">
+                      <div className="font-semibold text-slate-800">{d.vehicle_name || d.vehicle_id}</div>
+                      <div className="text-[10px] font-bold text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200 mt-0.5 inline-block">
+                        {getVehicleTerrainSuitability(d.vehicle_id).short.split('•')[0].trim()} Match ✓
+                      </div>
+                    </td>
                     <td className="py-3 px-3 text-center">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-bold border uppercase tracking-wider ${getStatusColor(d.status)}`}>
                         {d.status}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   CloudRain, Shield, AlertTriangle, CheckCircle, Navigation, 
   Truck, ArrowRight, Layers, ZoomIn, ZoomOut, RotateCcw, 
-  Maximize2, Eye, Compass, Info, Building2, Wind
+  Maximize2, Eye, Compass, Info, Building2, Wind, GitBranch
 } from 'lucide-react';
 
 // Configuration for all 5 forward posts with unique coordinates, hazards, and corridors
@@ -539,7 +539,12 @@ export default function MapRoutePlanning({
   deliveryStatus = null,
   onDispatchConvoy = null,
   onCompleteDelivery = null,
-  isExecuting = false
+  isExecuting = false,
+  isCombinedRoute = false,
+  secondaryPostId = null,
+  secondaryPostName = null,
+  routeTerrainType = null,
+  terrainCertification = null
 }) {
   const [zoom, setZoom] = useState(1);
   const [showTerrainDetails, setShowTerrainDetails] = useState(true);
@@ -968,9 +973,49 @@ export default function MapRoutePlanning({
               {/* Label Badge */}
               <rect x="-16" y="38" width="76" height="18" rx="4" fill="#000000" stroke="#64748b" strokeWidth="1.5" />
               <text x="22" y="50" fill="#ffffff" fontSize="9" fontWeight="900" textAnchor="middle">
-                {postConfig.name}
+                {isCombinedRoute ? `Stop 1: ${postConfig.name}` : postConfig.name}
               </text>
             </g>
+
+            {/* MULTI-STOP CONNECTOR & SECONDARY POST (If combined route is active) */}
+            {isCombinedRoute && secondaryPostId && (() => {
+              const secPost = POST_CONFIGS[secondaryPostId] || POST_CONFIGS['LOC-FWE'];
+              const p1 = postConfig.pos;
+              const p2 = secPost.pos;
+              const midX = (p1.x + p2.x) / 2 + 15;
+              const midY = (p1.y + p2.y) / 2 - 15;
+
+              return (
+                <g key="multi-stop-segment">
+                  {/* Dashed connector path between Stop 1 and Stop 2 */}
+                  <path
+                    d={`M ${p1.x} ${p1.y} Q ${midX} ${midY} ${p2.x} ${p2.y}`}
+                    stroke="#06b6d4"
+                    strokeWidth="3"
+                    strokeDasharray="6,4"
+                    fill="none"
+                    filter="drop-shadow(0 0 6px rgba(6, 182, 212, 0.7))"
+                  />
+                  {/* Waypoint on connector */}
+                  <circle cx={midX} cy={midY} r="4" fill="#06b6d4" stroke="#ffffff" strokeWidth="1.5" />
+                  <rect x={midX - 35} y={midY - 18} width="70" height="14" rx="3" fill="#0f172a" stroke="#06b6d4" strokeWidth="1" />
+                  <text x={midX} y={midY - 8} fill="#38bdf8" fontSize="7.5" fontWeight="bold" textAnchor="middle">
+                    Ridge Link (+48 km)
+                  </text>
+
+                  {/* Stop 2 Marker */}
+                  <g transform={`translate(${p2.x - 22}, ${p2.y - 22})`}>
+                    <circle cx="22" cy="22" r="22" fill="rgba(6, 182, 212, 0.25)" className="animate-ping" style={{ animationDuration: '3s' }} />
+                    <circle cx="22" cy="22" r="16" fill="#0284c7" stroke="#ffffff" strokeWidth="2.5" filter="drop-shadow(0 2px 7px rgba(0,0,0,0.7))" />
+                    <path d="M 16 27 L 16 20 L 19 20 L 19 17 L 25 17 L 25 20 L 28 20 L 28 27 Z" fill="#ffffff" />
+                    <rect x="-18" y="38" width="80" height="18" rx="4" fill="#0369a1" stroke="#38bdf8" strokeWidth="1.5" />
+                    <text x="22" y="50" fill="#ffffff" fontSize="8.5" fontWeight="900" textAnchor="middle">
+                      Stop 2: {secondaryPostName || secPost.name}
+                    </text>
+                  </g>
+                </g>
+              );
+            })()}
 
             {/* WAYPOINT HOVER TOOLTIP */}
             {hoveredWaypoint && (
@@ -1081,6 +1126,41 @@ export default function MapRoutePlanning({
                   </div>
                 </div>
               </div>
+
+              {/* Route Terrain Profile & Vehicle Certification Match */}
+              <div className="bg-[#0e192c] p-3 rounded-xl border border-[#1e3450] space-y-1.5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400 flex items-center gap-1">
+                    <Navigation size={13} className="text-teal-400" />
+                    Corridor Terrain:
+                  </span>
+                  <span className="font-extrabold text-amber-300">
+                    {routeTerrainType || activeRoute?.description || 'Mountain Pass All-Terrain'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs pt-1 border-t border-[#1e3450]/60">
+                  <span className="text-slate-400 flex items-center gap-1">
+                    <Truck size={13} className="text-sky-400" />
+                    Vehicle Terrain Match:
+                  </span>
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    {terrainCertification || '✓ Terrain Certified'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Combined Multi-Stop Mission Notice */}
+              {isCombinedRoute && (
+                <div className="p-3 bg-sky-950/40 border border-sky-600/40 rounded-xl text-sky-200 text-xs flex items-center gap-2.5">
+                  <GitBranch size={16} className="text-sky-400 flex-shrink-0" />
+                  <div>
+                    <div className="font-bold text-sky-100">Combined Multi-Stop Mission Active</div>
+                    <div className="text-[11px] text-sky-300/80">
+                      Sequential Corridor: Stop 1 ({postConfig.name}) ➔ Stop 2 ({secondaryPostName || 'Adjacent Outpost'}) via +48km ridge connector.
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Allotted Cargo Manifest from Supply Officer */}
               {items && typeof items === 'object' && Object.keys(items).length > 0 && (

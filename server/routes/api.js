@@ -460,7 +460,7 @@ module.exports = (db) => {
   // ── RESUPPLY DIRECTIVE (Issued by Logistics Officer) ──
   router.post('/resupply/directive', (req, res) => {
     try {
-      const { post_id, depot_id, route_id, planned_date, intensity, notes } = req.body;
+      const { post_id, depot_id, route_id, planned_date, intensity, notes, is_combined, secondary_post_id } = req.body;
       const targetPost = post_id || 'LOC-FWC';
       const targetDepot = depot_id || 'LOC-ALPHA';
       const targetRoute = route_id || 'R-03';
@@ -472,38 +472,64 @@ module.exports = (db) => {
           .run(Number(intensity), targetPost);
       }
 
+      const postName = db.prepare("SELECT name FROM locations WHERE id=?").get(targetPost)?.name || targetPost;
+      const secPostName = secondary_post_id ? (db.prepare("SELECT name FROM locations WHERE id=?").get(secondary_post_id)?.name || secondary_post_id) : null;
+      const depotName = db.prepare("SELECT name FROM locations WHERE id=?").get(targetDepot)?.name || targetDepot;
+      const corridorTitle = getRouteDetails(targetPost, targetRoute);
+
+      const directiveNote = is_combined && secondary_post_id
+        ? `[COMBINED_ROUTE:${targetPost}+${secondary_post_id}] Multi-Stop Resupply: Stop 1 -> ${postName}, Stop 2 -> ${secPostName} from ${depotName} via ${corridorTitle}. Departure: ${targetDate}.`
+        : (notes || `Directive for ${postName} from ${depotName} via ${corridorTitle}`);
+
       // 2. Find or create delivery
       let del = db.prepare("SELECT * FROM deliveries WHERE destination_id=? AND status NOT IN ('Delivered','Cancelled') ORDER BY created_at DESC LIMIT 1").get(targetPost);
       let deliveryId;
       if (del) {
         deliveryId = del.id;
         db.prepare("UPDATE deliveries SET source_id=?, route_id=?, planned_date=?, status='Pending Supply Allotment', notes=?, priority='High' WHERE id=?")
-          .run(targetDepot, targetRoute, targetDate, notes || `Directive via ${getRouteDetails(targetPost, targetRoute)}`, deliveryId);
+          .run(targetDepot, targetRoute, targetDate, directiveNote, deliveryId);
       } else {
         deliveryId = 'DEL-' + Date.now().toString(36).toUpperCase();
         db.prepare("INSERT INTO deliveries (id,source_id,destination_id,items,planned_date,vehicle_id,route_id,status,priority,notes,created_by,created_at) VALUES (?,?,?,?,?,'VH-02',?,'Pending Supply Allotment','High',?,?,datetime('now'))")
-          .run(deliveryId, targetDepot, targetPost, JSON.stringify({}), targetDate, targetRoute, notes || `Directive via ${getRouteDetails(targetPost, targetRoute)}`, req.user?.username || 'logistics');
+          .run(deliveryId, targetDepot, targetPost, JSON.stringify({}), targetDate, targetRoute, directiveNote, req.user?.username || 'logistics');
       }
 
-      // 3. Create active alert to notify Supply Officer (resolving older alert for this post first)
-      const postName = db.prepare("SELECT name FROM locations WHERE id=?").get(targetPost)?.name || targetPost;
-      const depotName = db.prepare("SELECT name FROM locations WHERE id=?").get(targetDepot)?.name || targetDepot;
-      const corridorTitle = getRouteDetails(targetPost, targetRoute);
+      // 3. Create active alerts to notify Supply Officer (resolving older alert for these posts first)
       db.prepare("UPDATE alerts SET status='Resolved', resolved_at=datetime('now') WHERE location_id=? AND type='resupply' AND status='New'")
         .run(targetPost);
-      db.prepare("INSERT INTO alerts (type, severity, location_id, title, message, status, created_at) VALUES ('resupply', 'High', ?, 'Resupply Directive Issued', ?, 'New', datetime('now'))")
-        .run(targetPost, `Logistics Officer approved resupply from ${depotName} via ${corridorTitle}. Awaiting Supply Officer ration allotment.`);
+      
+      const alertMsg = is_combined && secPostName
+        ? `Logistics Officer approved COMBINED route from ${depotName} via ${corridorTitle} for both ${postName} and ${secPostName}. Awaiting Supply Officer ration allotment for both outposts.`
+        : `Logistics Officer approved resupply from ${depotName} via ${corridorTitle}. Awaiting Supply Officer ration allotment.`;
 
-      auditLog(req.user?.username, req.user?.role, 'DIRECTIVE', 'Resupply', `Issued resupply directive for ${postName} from ${depotName} via ${corridorTitle}`, targetPost, null, JSON.stringify(req.body));
+      db.prepare("INSERT INTO alerts (type, severity, location_id, title, message, status, created_at) VALUES ('resupply', 'High', ?, ?, ?, 'New', datetime('now'))")
+        .run(targetPost, is_combined ? 'Combined Resupply Directive Issued' : 'Resupply Directive Issued', alertMsg);
 
-      res.json({ success: true, delivery_id: deliveryId, message: 'Resupply directive dispatched to Supply Officer' });
+      if (is_combined && secondary_post_id) {
+        db.prepare("UPDATE alerts SET status='Resolved', resolved_at=datetime('now') WHERE location_id=? AND type='resupply' AND status='New'")
+          .run(secondary_post_id);
+        db.prepare("INSERT INTO alerts (type, severity, location_id, title, message, status, created_at) VALUES ('resupply', 'High', ?, 'Combined Resupply Directive Issued', ?, 'New', datetime('now'))")
+          .run(secondary_post_id, alertMsg);
+      }
+
+      auditLog(req.user?.username, req.user?.role, 'DIRECTIVE', 'Resupply', `Issued resupply directive for ${postName}${secPostName ? ' + ' + secPostName : ''} from ${depotName} via ${corridorTitle}`, targetPost, null, JSON.stringify(req.body));
+
+      res.json({ 
+        success: true, 
+        delivery_id: deliveryId, 
+        is_combined: Boolean(is_combined),
+        secondary_post_id,
+        message: is_combined 
+          ? `Combined resupply directive for ${postName} and ${secPostName} dispatched to Supply Officer`
+          : `Resupply directive for ${postName} dispatched to Supply Officer` 
+      });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
   // ── RESUPPLY RATION ALLOTMENT (Entered by Supply Officer) ──
   router.post('/resupply/allot', (req, res) => {
     try {
-      const { delivery_id, destination_id, items, notes } = req.body;
+      const { delivery_id, destination_id, items, secondary_items, secondary_destination_id, notes } = req.body;
       let del = null;
       if (delivery_id) {
         del = db.prepare("SELECT * FROM deliveries WHERE id=?").get(delivery_id);
@@ -523,21 +549,65 @@ module.exports = (db) => {
           .run(del.id, del.source_id, del.destination_id, JSON.stringify(items || {}), del.planned_date, del.route_id, notes || 'Ration allotment created');
       }
 
-      // Calculate payload weight
+      // Calculate payload weight across primary items
       const food = Number(items?.['Food Rations'] ?? items?.['Food'] ?? 0);
       const water = Number(items?.['Potable Water'] ?? items?.['Water'] ?? 0);
       const med = Number(items?.['Medical Supplies'] ?? items?.['Medical'] ?? 0);
       const fuel = Number(items?.['Diesel Fuel'] ?? items?.['Fuel'] ?? 0);
-      const totalWeight = (food * 1) + (water * 1) + (med * 1) + (fuel * 0.85);
+      let totalWeight = (food * 1) + (water * 1) + (med * 1) + (fuel * 0.85);
 
-      // Automatic vehicle selection based on payload weight
-      let selectedVehicleId = 'VH-02'; // default Medium Truck (8000kg)
-      if (totalWeight <= 3000) {
-        selectedVehicleId = 'VH-03'; // Light Truck (3000kg)
-      } else if (totalWeight <= 8000) {
-        selectedVehicleId = 'VH-02'; // Medium Truck (8000kg)
+      // If secondary items exist (for combined multi-post route), add them
+      if (secondary_items && typeof secondary_items === 'object') {
+        const sFood = Number(secondary_items['Food Rations'] ?? secondary_items['Food'] ?? 0);
+        const sWater = Number(secondary_items['Potable Water'] ?? secondary_items['Water'] ?? 0);
+        const sMed = Number(secondary_items['Medical Supplies'] ?? secondary_items['Medical'] ?? 0);
+        const sFuel = Number(secondary_items['Diesel Fuel'] ?? secondary_items['Fuel'] ?? 0);
+        totalWeight += (sFood * 1) + (sWater * 1) + (sMed * 1) + (sFuel * 0.85);
+      }
+
+      // ── TERRAIN-BASED VEHICLE SELECTION ──
+      // Lookup route to inspect terrain profile (Mountain, Desert, Plains)
+      const route = db.prepare("SELECT * FROM routes WHERE id=?").get(del.route_id);
+      const terrain = (route?.terrain || 'Mountainous').toLowerCase();
+
+      let selectedVehicleId = 'VH-02'; // default Medium Tactical 4x4
+      let terrainNotes = '';
+
+      if (terrain.includes('mountain') || terrain.includes('highland') || terrain.includes('pass')) {
+        // Mountainous terrain: Strictly Tactical 4x4 or 6x6 All-Terrain vehicles
+        // (VH-04 Heavy Highway Carrier is excluded from steep mountain passes)
+        if (totalWeight <= 3000) {
+          selectedVehicleId = 'VH-03'; // Light Tactical 4x4 (Agile Mountain)
+          terrainNotes = 'Selected VH-03 (Light Tactical 4x4) - Certified for steep mountain pass switchbacks.';
+        } else if (totalWeight <= 8000) {
+          selectedVehicleId = 'VH-02'; // Medium Tactical 4x4
+          terrainNotes = 'Selected VH-02 (Medium Tactical 4x4) - Optimal balance for mountain terrain with high ground clearance.';
+        } else {
+          selectedVehicleId = 'VH-01'; // Heavy Tactical 6x6
+          terrainNotes = 'Selected VH-01 (Heavy Tactical 6x6) - Certified for heavy mountain payloads with all-wheel drive.';
+        }
+      } else if (terrain.includes('desert')) {
+        // Desert terrain: High heat cooling and sand capability
+        if (totalWeight <= 3000) {
+          selectedVehicleId = 'VH-03';
+          terrainNotes = 'Selected VH-03 (Light Tactical 4x4) - Desert sand dune capable.';
+        } else if (totalWeight <= 8000) {
+          selectedVehicleId = 'VH-02';
+          terrainNotes = 'Selected VH-02 (Medium Tactical 4x4) - Sand-rated tires and cooling.';
+        } else {
+          selectedVehicleId = 'VH-01';
+          terrainNotes = 'Selected VH-01 (Heavy Tactical 6x6) - Desert crossing heavy hauler.';
+        }
       } else {
-        selectedVehicleId = 'VH-01'; // Heavy Truck (15000kg)
+        // Plains / Paved Highway
+        if (totalWeight <= 3000) {
+          selectedVehicleId = 'VH-03';
+        } else if (totalWeight <= 8000) {
+          selectedVehicleId = 'VH-02';
+        } else {
+          selectedVehicleId = 'VH-04'; // Heavy Highway Carrier (15000kg)
+          terrainNotes = 'Selected VH-04 (Heavy Transport Delta) - Max highway payload efficiency on paved plains.';
+        }
       }
 
       // Check if vehicle exists and assign
@@ -546,11 +616,17 @@ module.exports = (db) => {
         db.prepare("UPDATE vehicles SET status='Assigned', assignment=? WHERE id=?").run(del.id, selectedVehicleId);
       }
 
-      // Update delivery record
-      db.prepare("UPDATE deliveries SET items=?, vehicle_id=?, status='Ready for Dispatch', notes=COALESCE(?, notes) WHERE id=?")
-        .run(JSON.stringify(items || {}), selectedVehicleId, notes || 'Rations allotted by Supply Officer. Vehicle auto-assigned.', del.id);
+      // Package items with optional secondary post breakdown
+      const finalItemsPayload = secondary_items && Object.keys(secondary_items).length > 0
+        ? { primary_items: items, secondary_items, secondary_destination_id }
+        : items;
 
-      // Also update destination post incoming inventory quantity
+      // Update delivery record
+      const fullNotes = (notes ? notes + ' • ' : '') + terrainNotes;
+      db.prepare("UPDATE deliveries SET items=?, vehicle_id=?, status='Ready for Dispatch', notes=? WHERE id=?")
+        .run(JSON.stringify(finalItemsPayload || {}), selectedVehicleId, fullNotes, del.id);
+
+      // Update destination post incoming inventory quantity
       if (food > 0) {
         db.prepare("UPDATE inventory SET incoming_quantity=?, expected_delivery=?, last_updated=datetime('now') WHERE location_id=? AND (category='Food' OR item LIKE '%Food%')")
           .run(food, del.planned_date, del.destination_id);
@@ -560,18 +636,38 @@ module.exports = (db) => {
           .run(water, del.planned_date, del.destination_id);
       }
 
+      // If secondary destination has items, update incoming inventory for secondary post too
+      if (secondary_destination_id && secondary_items) {
+        const sFood = Number(secondary_items['Food Rations'] ?? secondary_items['Food'] ?? 0);
+        const sWater = Number(secondary_items['Potable Water'] ?? secondary_items['Water'] ?? 0);
+        if (sFood > 0) {
+          db.prepare("UPDATE inventory SET incoming_quantity=?, expected_delivery=?, last_updated=datetime('now') WHERE location_id=? AND (category='Food' OR item LIKE '%Food%')")
+            .run(sFood, del.planned_date, secondary_destination_id);
+        }
+        if (sWater > 0) {
+          db.prepare("UPDATE inventory SET incoming_quantity=?, expected_delivery=?, last_updated=datetime('now') WHERE location_id=? AND (category='Water' OR item LIKE '%Water%')")
+            .run(sWater, del.planned_date, secondary_destination_id);
+        }
+      }
+
       // Acknowledge the directive alert since Supply Officer has now acted on it
       db.prepare("UPDATE alerts SET status='Acknowledged', acknowledged_by=?, acknowledged_at=datetime('now') WHERE location_id=? AND type='resupply' AND status='New'")
         .run(req.user?.username || 'Supply Officer', del.destination_id);
+      if (secondary_destination_id) {
+        db.prepare("UPDATE alerts SET status='Acknowledged', acknowledged_by=?, acknowledged_at=datetime('now') WHERE location_id=? AND type='resupply' AND status='New'")
+          .run(req.user?.username || 'Supply Officer', secondary_destination_id);
+      }
 
-      auditLog(req.user?.username, req.user?.role, 'ALLOT', 'Supply', `Supply Officer allotted rations (${Math.round(totalWeight)} kg). Assigned ${veh?.name || selectedVehicleId}`, del.destination_id, del.items, JSON.stringify(items));
+      auditLog(req.user?.username, req.user?.role, 'ALLOT', 'Supply', `Supply Officer allotted rations (${Math.round(totalWeight)} kg). Terrain: ${terrain}. Assigned ${veh?.name || selectedVehicleId}`, del.destination_id, del.items, JSON.stringify(finalItemsPayload));
 
       res.json({ 
         success: true, 
         delivery_id: del.id, 
         payload_weight: Math.round(totalWeight),
         vehicle: veh || { id: selectedVehicleId, name: 'Assigned Vehicle', capacity: 15000 },
-        items,
+        terrain: route?.terrain || 'Mountainous',
+        terrain_note: terrainNotes,
+        items: finalItemsPayload,
         route_id: del.route_id,
         route_name: getRouteDetails(del.destination_id, del.route_id)
       });
@@ -600,28 +696,37 @@ module.exports = (db) => {
       db.prepare("UPDATE deliveries SET status='Delivered', actual_date=datetime('now') WHERE id=?").run(del.id);
 
       // 2. Add cargo quantities to destination inventory
-      let items = {};
-      try { items = typeof del.items === 'string' ? JSON.parse(del.items) : (del.items || {}); } catch {}
-      if ((!items || Object.keys(items).length === 0) && req.body?.items) {
-        items = req.body.items;
-      }
-      if (!items || Object.keys(items).length === 0) {
-        items = { 'Food Rations': 3600, 'Potable Water': 7200, 'Medical Supplies': 400, 'Diesel Fuel': 2000 };
-      }
+      let parsed = {};
+      try { parsed = typeof del.items === 'string' ? JSON.parse(del.items) : (del.items || {}); } catch {}
+      
+      const primaryItems = parsed.primary_items || parsed;
+      const secondaryItems = parsed.secondary_items;
+      const secondaryDest = parsed.secondary_destination_id;
 
-      for (const [key, rawVal] of Object.entries(items)) {
-        const qty = Number(rawVal) || 0;
-        if (qty > 0) {
-          const cat = key.includes('Food') ? 'Food' : key.includes('Water') ? 'Water' : key.includes('Med') ? 'Medical' : key.includes('Fuel') ? 'Fuel' : key;
-          const invItem = db.prepare("SELECT id, quantity FROM inventory WHERE location_id=? AND (category=? OR item LIKE ?)").get(del.destination_id, cat, `%${cat}%`);
-          if (invItem) {
-            db.prepare("UPDATE inventory SET quantity=quantity+?, incoming_quantity=0, last_updated=datetime('now') WHERE id=?")
-              .run(qty, invItem.id);
-          } else {
-            db.prepare("INSERT INTO inventory (location_id, item, category, quantity, unit, daily_consumption, safety_stock, incoming_quantity, last_updated) VALUES (?, ?, ?, ?, 'units', 100, 200, 0, datetime('now'))")
-              .run(del.destination_id, key, cat, qty);
+      const replenishPost = (targetLocationId, itemList) => {
+        if (!targetLocationId || !itemList) return;
+        for (const [key, rawVal] of Object.entries(itemList)) {
+          const qty = Number(rawVal) || 0;
+          if (qty > 0) {
+            const cat = key.includes('Food') ? 'Food' : key.includes('Water') ? 'Water' : key.includes('Med') ? 'Medical' : key.includes('Fuel') ? 'Fuel' : key;
+            const invItem = db.prepare("SELECT id, quantity FROM inventory WHERE location_id=? AND (category=? OR item LIKE ?)").get(targetLocationId, cat, `%${cat}%`);
+            if (invItem) {
+              db.prepare("UPDATE inventory SET quantity=quantity+?, incoming_quantity=0, last_updated=datetime('now') WHERE id=?")
+                .run(qty, invItem.id);
+            } else {
+              db.prepare("INSERT INTO inventory (location_id, item, category, quantity, unit, daily_consumption, safety_stock, incoming_quantity, last_updated) VALUES (?, ?, ?, ?, 'units', 100, 200, 0, datetime('now'))")
+                .run(targetLocationId, key, cat, qty);
+            }
           }
         }
+        db.prepare("UPDATE alerts SET status='Resolved', resolved_at=datetime('now'), resolved_by=? WHERE location_id=? AND status!='Resolved'")
+          .run(req.user?.username || 'Transport Coordinator', targetLocationId);
+        db.prepare("UPDATE locations SET status='Operational' WHERE id=?").run(targetLocationId);
+      };
+
+      replenishPost(del.destination_id, primaryItems);
+      if (secondaryDest && secondaryItems) {
+        replenishPost(secondaryDest, secondaryItems);
       }
 
       // 3. Free up vehicle
@@ -630,14 +735,7 @@ module.exports = (db) => {
           .run(del.destination_id, del.vehicle_id);
       }
 
-      // 4. Resolve shortage alerts for destination
-      db.prepare("UPDATE alerts SET status='Resolved', resolved_at=datetime('now'), resolved_by=? WHERE location_id=? AND status!='Resolved'")
-        .run(req.user?.username || 'Transport Coordinator', del.destination_id);
-
-      // 5. Update destination post status to Operational
-      db.prepare("UPDATE locations SET status='Operational' WHERE id=?").run(del.destination_id);
-
-      auditLog(req.user?.username, req.user?.role, 'DELIVER', 'Transport', `Confirmed delivery ${del.id} at ${del.destination_id}. All rations received.`, del.destination_id, 'En Route', 'Delivered');
+      auditLog(req.user?.username, req.user?.role, 'DELIVER', 'Transport', `Confirmed delivery ${del.id} at ${del.destination_id}${secondaryDest ? ' + ' + secondaryDest : ''}. All rations received.`, del.destination_id, 'En Route', 'Delivered');
 
       res.json({ success: true, message: 'Delivery completed and post inventory replenished', delivery_id: del.id });
     } catch (err) { res.status(500).json({ error: err.message }); }

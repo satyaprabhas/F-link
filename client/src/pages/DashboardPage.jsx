@@ -32,8 +32,16 @@ const DashboardPage = () => {
   const [selectedSupplyPostId, setSelectedSupplyPostId] = useState('LOC-FWC');
   const [foodRations, setFoodRations] = useState(3600);
   const [waterRations, setWaterRations] = useState(7200);
-  const [medicalRations, setMedicalRations] = useState(400);
-  const [fuelRations, setFuelRations] = useState(2000);
+  const [medicalRations, setMedicalRations] = useState(0);
+  const [fuelRations, setFuelRations] = useState(0);
+
+  // Secondary outpost states for Combined Multi-Stop Corridors
+  const [secondaryFoodRations, setSecondaryFoodRations] = useState(0);
+  const [secondaryWaterRations, setSecondaryWaterRations] = useState(0);
+  const [secondaryMedicalRations, setSecondaryMedicalRations] = useState(0);
+  const [secondaryFuelRations, setSecondaryFuelRations] = useState(0);
+  const [activeAllotmentTab, setActiveAllotmentTab] = useState('primary'); // 'primary' | 'secondary'
+
   const [isAllotting, setIsAllotting] = useState(false);
   const [allotmentSuccess, setAllotmentSuccess] = useState(false);
 
@@ -123,6 +131,76 @@ const DashboardPage = () => {
     || deliveries.find(d => d.status === 'Pending Supply Allotment')
     || activeDelivery;
 
+  // ── Combined Multi-Stop Route Detection ──
+  const combinedMatch = activeDeliveryForSupply?.notes?.match(/\[COMBINED_ROUTE:([A-Za-z0-9_-]+)\+([A-Za-z0-9_-]+)\]/);
+  const isCombinedDirective = Boolean(combinedMatch);
+  const primaryPostId = combinedMatch ? combinedMatch[1] : (activeDeliveryForSupply?.destination_id || selectedSupplyPostId);
+  const secondaryPostId = combinedMatch ? combinedMatch[2] : null;
+  const primaryPostObj = locations.find(l => l.id === primaryPostId);
+  const secondaryPostObj = secondaryPostId ? locations.find(l => l.id === secondaryPostId) : null;
+
+  // ── Shortage-driven evaluation helper ──
+  // If post has a shortage (days <= 3.0 or <= safety stock), allocate full capacity batch:
+  // Food = 3,600 units, Water = 7,200 L, Medical = 400 units, Fuel = 2,000 L.
+  // If post has adequate stock (days > 3.0), do NOT over-allocate (allot 0 units).
+  const getPostShortages = (targetPostId) => {
+    const loc = locations.find(l => l.id === targetPostId);
+    if (!loc) {
+      return {
+        food: 3600, water: 7200, medical: 0, fuel: 0,
+        foodDays: 2.0, waterDays: 2.08, medDays: 20.0, fuelDays: 6.0,
+        foodShort: true, waterShort: true, medShort: false, fuelShort: false
+      };
+    }
+    const inv = loc.inventory_summary || loc.inventory || {};
+    const fDays = inv.Food ? inv.Food.days_remaining : null;
+    const wDays = inv.Water ? inv.Water.days_remaining : null;
+    const mDays = inv.Medical ? inv.Medical.days_remaining : null;
+    const fuDays = inv.Fuel ? inv.Fuel.days_remaining : null;
+
+    const foodShort = fDays !== null && fDays <= 3.0;
+    const waterShort = wDays !== null && wDays <= 3.0;
+    const medShort = mDays !== null && mDays <= 4.0;
+    const fuelShort = fuDays !== null && fuDays <= 4.0;
+
+    return {
+      food: foodShort ? 3600 : 0,
+      water: waterShort ? 7200 : 0,
+      medical: medShort ? 400 : 0,
+      fuel: fuelShort ? 2000 : 0,
+      foodDays: fDays,
+      waterDays: wDays,
+      medDays: mDays,
+      fuelDays: fuDays,
+      foodShort,
+      waterShort,
+      medShort,
+      fuelShort
+    };
+  };
+
+  // Auto-allot rations based on shortages whenever selected post changes or locations load
+  useEffect(() => {
+    if (locations && locations.length > 0) {
+      const pShort = getPostShortages(selectedSupplyPostId);
+      setFoodRations(pShort.food);
+      setWaterRations(pShort.water);
+      setMedicalRations(pShort.medical);
+      setFuelRations(pShort.fuel);
+    }
+  }, [selectedSupplyPostId, locations]);
+
+  // Auto-allot for secondary post if combined corridor
+  useEffect(() => {
+    if (secondaryPostId && locations && locations.length > 0) {
+      const sShort = getPostShortages(secondaryPostId);
+      setSecondaryFoodRations(sShort.food);
+      setSecondaryWaterRations(sShort.water);
+      setSecondaryMedicalRations(sShort.medical);
+      setSecondaryFuelRations(sShort.fuel);
+    }
+  }, [secondaryPostId, locations]);
+
   // ── Transport Coordinator Deliveries: ONLY directives where rations have been allotted by Supply Officer! ──
   const transportEligibleDeliveries = (deliveries || []).filter(d => 
     d.status === 'Ready for Dispatch' || d.status === 'En Route' || d.status === 'Delivered'
@@ -156,35 +234,93 @@ const DashboardPage = () => {
     ((Number(transportDeliveryItems['Diesel Fuel'] ?? transportDeliveryItems.fuel ?? transportDeliveryItems.Fuel ?? 0)) * 0.85)
   ) : null;
 
-  // Helper calculations for Supply Officer payload
-  const totalPayloadWeight = Math.round(
+  // Helper calculations for Supply Officer primary payload
+  const primaryPayloadWeight = Math.round(
     (Number(foodRations) * 1) + 
     (Number(waterRations) * 1) + 
     (Number(medicalRations) * 1) + 
     (Number(fuelRations) * 0.85)
   );
 
+  // Helper calculations for secondary payload (if combined corridor)
+  const secondaryPayloadWeight = (isCombinedDirective && secondaryPostId) ? Math.round(
+    (Number(secondaryFoodRations) * 1) + 
+    (Number(secondaryWaterRations) * 1) + 
+    (Number(secondaryMedicalRations) * 1) + 
+    (Number(secondaryFuelRations) * 0.85)
+  ) : 0;
+
+  const totalPayloadWeight = primaryPayloadWeight + secondaryPayloadWeight;
+
   const displayedPayloadWeight = (roleName === 'Transport Coordinator' && transportPayloadWeight !== null && transportPayloadWeight > 0)
     ? transportPayloadWeight
     : totalPayloadWeight;
 
-  // Auto vehicle selection based on payload weight
-  let autoVehicleName = 'Medium Transport Bravo (8,000 kg)';
+  // ── Terrain-Based Vehicle Selection ──
+  const assignedRouteId = activeTransportDelivery?.route_id || activeDeliveryForSupply?.route_id || 'R-03';
+  const assignedRouteObj = routes.find(r => r.id === assignedRouteId);
+  const routeTerrain = (assignedRouteObj?.terrain || (assignedRouteId === 'R-01' ? 'Mountainous' : assignedRouteId === 'R-02' ? 'Desert' : 'Highland Corridor')).toLowerCase();
+
+  let autoVehicleName = 'Medium Tactical 4x4 (VH-02)';
   let autoVehicleCap = 8000;
   let autoVehicleId = 'VH-02';
-  const evalWeight = displayedPayloadWeight;
-  if (evalWeight <= 3000) {
-    autoVehicleName = 'Light Vehicle Charlie (3,000 kg)';
-    autoVehicleCap = 3000;
-    autoVehicleId = 'VH-03';
-  } else if (evalWeight <= 8000) {
-    autoVehicleName = 'Medium Transport Bravo (8,000 kg)';
-    autoVehicleCap = 8000;
-    autoVehicleId = 'VH-02';
+  let terrainCertification = 'Mountain 4x4 Certified';
+  let routeTerrainName = 'Highland Corridor (Paved Arterial)';
+
+  if (routeTerrain.includes('mountain') || assignedRouteId === 'R-01') {
+    routeTerrainName = 'Mountain Pass (Steep Switchbacks & Landslide Hazard)';
+    if (displayedPayloadWeight <= 3000) {
+      autoVehicleName = 'Light Tactical 4x4 - Agile Mountain (VH-03)';
+      autoVehicleCap = 3000;
+      autoVehicleId = 'VH-03';
+      terrainCertification = '✓ Mountain Pass Agile 4x4 Certified';
+    } else if (displayedPayloadWeight <= 8000) {
+      autoVehicleName = 'Medium Tactical 4x4 - Ridge Patrol (VH-02)';
+      autoVehicleCap = 8000;
+      autoVehicleId = 'VH-02';
+      terrainCertification = '✓ Mountain All-Terrain High-Clearance Certified';
+    } else {
+      autoVehicleName = 'Heavy Tactical 6x6 - Mountain Hauler (VH-01)';
+      autoVehicleCap = 15000;
+      autoVehicleId = 'VH-01';
+      terrainCertification = '✓ Heavy Tactical 6x6 All-Wheel Mountain Certified';
+    }
+  } else if (routeTerrain.includes('desert') || assignedRouteId === 'R-02') {
+    routeTerrainName = 'Desert Bypass (Loose Sand Dunes & High Ambient Heat)';
+    if (displayedPayloadWeight <= 3000) {
+      autoVehicleName = 'Light Tactical 4x4 - Sand Traverse (VH-03)';
+      autoVehicleCap = 3000;
+      autoVehicleId = 'VH-03';
+      terrainCertification = '✓ Desert Dune & Loose Sand Certified';
+    } else if (displayedPayloadWeight <= 8000) {
+      autoVehicleName = 'Medium Tactical 4x4 - Desert Cooling (VH-02)';
+      autoVehicleCap = 8000;
+      autoVehicleId = 'VH-02';
+      terrainCertification = '✓ Desert High-Ambient Cooling Certified';
+    } else {
+      autoVehicleName = 'Heavy Tactical 6x6 - Desert Cross-Country (VH-01)';
+      autoVehicleCap = 15000;
+      autoVehicleId = 'VH-01';
+      terrainCertification = '✓ Heavy Tactical 6x6 Desert Heavy Hauler';
+    }
   } else {
-    autoVehicleName = 'Heavy Transport Alpha (15,000 kg)';
-    autoVehicleCap = 15000;
-    autoVehicleId = 'VH-01';
+    routeTerrainName = 'Highland Arterial (Paved Safe Corridor)';
+    if (displayedPayloadWeight <= 3000) {
+      autoVehicleName = 'Light Vehicle Charlie (VH-03)';
+      autoVehicleCap = 3000;
+      autoVehicleId = 'VH-03';
+      terrainCertification = '✓ Arterial Highway & Tactical Certified';
+    } else if (displayedPayloadWeight <= 8000) {
+      autoVehicleName = 'Medium Transport Bravo (VH-02)';
+      autoVehicleCap = 8000;
+      autoVehicleId = 'VH-02';
+      terrainCertification = '✓ Standard Arterial Highway Certified';
+    } else {
+      autoVehicleName = 'Heavy Transport Alpha (VH-01)';
+      autoVehicleCap = 15000;
+      autoVehicleId = 'VH-01';
+      terrainCertification = '✓ Heavy Arterial Highway Hauler';
+    }
   }
 
   // ── Supply Officer: Allot Rations & Transmit to Transport Portal ──
@@ -193,14 +329,23 @@ const DashboardPage = () => {
       setIsAllotting(true);
       await api.resupply.allotRations({
         delivery_id: activeDeliveryForSupply?.id,
-        destination_id: selectedSupplyPostId,
+        destination_id: primaryPostId,
+        secondary_destination_id: isCombinedDirective ? secondaryPostId : undefined,
         items: {
           'Food Rations': Number(foodRations),
           'Potable Water': Number(waterRations),
           'Medical Supplies': Number(medicalRations),
           'Diesel Fuel': Number(fuelRations)
         },
-        notes: `Rations allotted by Supply Officer for ${selectedSupplyPostId}. Total cargo payload: ${totalPayloadWeight} kg. Assigned ${autoVehicleName}.`
+        secondary_items: (isCombinedDirective && secondaryPostId) ? {
+          'Food Rations': Number(secondaryFoodRations),
+          'Potable Water': Number(secondaryWaterRations),
+          'Medical Supplies': Number(secondaryMedicalRations),
+          'Diesel Fuel': Number(secondaryFuelRations)
+        } : undefined,
+        notes: isCombinedDirective && secondaryPostId
+          ? `[COMBINED_ROUTE:${primaryPostId}+${secondaryPostId}] Multi-stop rations allotted by Supply Officer. Stop 1 (${primaryPostObj?.name}): ${primaryPayloadWeight}kg. Stop 2 (${secondaryPostObj?.name}): ${secondaryPayloadWeight}kg. Total convoy payload: ${totalPayloadWeight}kg via ${routeTerrainName}. Vehicle: ${autoVehicleName} (${terrainCertification}).`
+          : `Rations allotted by Supply Officer for ${primaryPostId}. Total cargo payload: ${totalPayloadWeight} kg via ${routeTerrainName}. Vehicle: ${autoVehicleName} (${terrainCertification}).`
       });
       setAllotmentSuccess(true);
       await fetchDashboard();
@@ -836,14 +981,23 @@ const DashboardPage = () => {
           <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-950 text-white">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
               <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded">
-                  Logistics Directive Received
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded">
+                    Logistics Directive Received
+                  </span>
+                  {isCombinedDirective && secondaryPostObj && (
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider bg-sky-500/20 text-sky-300 border border-sky-500/40 px-2 py-0.5 rounded flex items-center gap-1">
+                      <GitBranch size={11} /> Combined Multi-Stop Corridor ({primaryPostObj?.shortName || primaryPostObj?.name} + {secondaryPostObj.shortName || secondaryPostObj.name})
+                    </span>
+                  )}
+                </div>
                 <h3 className="text-base font-bold text-white mt-1">
-                  Resupply Directive for {activeTargetPost?.name || 'Forward Post'}
+                  {isCombinedDirective && secondaryPostObj
+                    ? `Multi-Stop Resupply: Stop 1 (${primaryPostObj?.name}) ➔ Stop 2 (${secondaryPostObj.name})`
+                    : `Resupply Directive for ${activeTargetPost?.name || 'Forward Post'}`}
                 </h3>
                 <p className="text-xs text-slate-300 mt-0.5">
-                  Origin: <strong>{activeDeliveryForSupply?.source_name || 'Depot Alpha'}</strong> • Route: <strong className="text-emerald-300">{activeDeliveryForSupply?.route_name || activeDeliveryForSupply?.route_id || 'Pending Route Approval by Logistics Officer'}</strong> • Target Delivery: <strong className="font-mono text-emerald-300">{activeDeliveryForSupply?.planned_date || 'Day 1'}</strong>
+                  Origin: <strong>{activeDeliveryForSupply?.source_name || 'Depot Alpha'}</strong> • Route Corridor: <strong className="text-emerald-300">{activeDeliveryForSupply?.route_name || activeDeliveryForSupply?.route_id || 'Corridor Approved by Logistics Officer'}</strong> • Departure: <strong className="font-mono text-emerald-300">{activeDeliveryForSupply?.planned_date || 'Day 1'}</strong>
                 </p>
               </div>
 
@@ -858,105 +1012,336 @@ const DashboardPage = () => {
               ) : null}
             </div>
 
-            {/* Post Selector for Supply Officer */}
-            <div className="mt-4 pt-3 border-t border-slate-700/60 flex flex-wrap items-center gap-2">
-              <span className="text-xs text-slate-300 font-bold">Allot Rations For Post:</span>
-              {forwardLocationsSorted.map(post => (
-                <button
-                  key={post.id}
-                  onClick={() => {
-                    setSelectedSupplyPostId(post.id);
-                    setAllotmentSuccess(false);
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    selectedSupplyPostId === post.id
-                      ? 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-400'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  {post.name.split('(')[0].trim()} ({getMinDays(post).toFixed(1)}d)
-                </button>
-              ))}
-            </div>
-
-            {/* Manual Ration Entry Form */}
-            <div className="mt-4 pt-3 border-t border-slate-700/60">
-              <div className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                <Package size={15} className="text-emerald-400" /> Enter Ration Quantities Allotted to Post:
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
-                  <label className="block text-[11px] text-slate-400 mb-1 font-semibold">Food Rations (kg / units)</label>
-                  <input 
-                    type="number"
-                    min="0"
-                    value={foodRations}
-                    onChange={(e) => setFoodRations(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white font-mono font-bold focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <div className="text-[10px] text-slate-500 mt-1">Standard: 3,600 units</div>
+            {/* Combined Corridor Outpost Switcher or Standard Post Selector */}
+            {isCombinedDirective && secondaryPostObj ? (
+              <div className="mt-4 pt-3 border-t border-slate-700/60 space-y-2">
+                <div className="text-xs text-sky-300 font-extrabold flex items-center gap-1.5">
+                  <GitBranch size={14} className="text-sky-400" />
+                  Combined Route Corridor Active — Allocate Rations For Each Outpost:
                 </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveAllotmentTab('primary')}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
+                      activeAllotmentTab === 'primary'
+                        ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-400'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <span>Stop 1: {primaryPostObj?.name}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/40 font-mono">
+                      {primaryPayloadWeight.toLocaleString()} kg
+                    </span>
+                  </button>
 
-                <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
-                  <label className="block text-[11px] text-slate-400 mb-1 font-semibold">Potable Water (Liters)</label>
-                  <input 
-                    type="number"
-                    min="0"
-                    value={waterRations}
-                    onChange={(e) => setWaterRations(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white font-mono font-bold focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <div className="text-[10px] text-slate-500 mt-1">Standard: 7,200 L</div>
-                </div>
-
-                <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
-                  <label className="block text-[11px] text-slate-400 mb-1 font-semibold">Medical Supplies (units)</label>
-                  <input 
-                    type="number"
-                    min="0"
-                    value={medicalRations}
-                    onChange={(e) => setMedicalRations(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white font-mono font-bold focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <div className="text-[10px] text-slate-500 mt-1">Standard: 400 units</div>
-                </div>
-
-                <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
-                  <label className="block text-[11px] text-slate-400 mb-1 font-semibold">Diesel Fuel (Liters)</label>
-                  <input 
-                    type="number"
-                    min="0"
-                    value={fuelRations}
-                    onChange={(e) => setFuelRations(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white font-mono font-bold focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <div className="text-[10px] text-slate-500 mt-1">Standard: 2,000 L</div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveAllotmentTab('secondary')}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
+                      activeAllotmentTab === 'secondary'
+                        ? 'bg-sky-600 text-white shadow-md ring-2 ring-sky-400'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <span>Stop 2: {secondaryPostObj.name}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/40 font-mono">
+                      {secondaryPayloadWeight.toLocaleString()} kg
+                    </span>
+                  </button>
                 </div>
               </div>
+            ) : (
+              <div className="mt-4 pt-3 border-t border-slate-700/60 flex flex-wrap items-center gap-2">
+                <span className="text-xs text-slate-300 font-bold">Allot Rations For Post:</span>
+                {forwardLocationsSorted.map(post => (
+                  <button
+                    key={post.id}
+                    onClick={() => {
+                      setSelectedSupplyPostId(post.id);
+                      setAllotmentSuccess(false);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      selectedSupplyPostId === post.id
+                        ? 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-400'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    {post.name.split('(')[0].trim()} ({getMinDays(post).toFixed(1)}d)
+                  </button>
+                ))}
+              </div>
+            )}
 
-              {/* Real-time Payload Calculation & Auto-Vehicle Assignment Banner */}
-              <div className="mt-4 p-3.5 bg-slate-900/90 border border-slate-700 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <div className="space-y-1">
-                  <div className="text-xs text-slate-400">
-                    Calculated Total Payload Weight: <strong className="font-mono text-emerald-400 text-sm">{totalPayloadWeight.toLocaleString()} kg</strong>
+            {/* Dynamic Shortage-Driven Ration Entry Form */}
+            {(() => {
+              const currentPostId = (isCombinedDirective && activeAllotmentTab === 'secondary' && secondaryPostId)
+                ? secondaryPostId
+                : selectedSupplyPostId;
+              const currentLocObj = locations.find(l => l.id === currentPostId) || activeTargetPost;
+              const shortages = getPostShortages(currentPostId);
+
+              const currentFood = isCombinedDirective && activeAllotmentTab === 'secondary' ? secondaryFoodRations : foodRations;
+              const currentWater = isCombinedDirective && activeAllotmentTab === 'secondary' ? secondaryWaterRations : waterRations;
+              const currentMed = isCombinedDirective && activeAllotmentTab === 'secondary' ? secondaryMedicalRations : medicalRations;
+              const currentFuel = isCombinedDirective && activeAllotmentTab === 'secondary' ? secondaryFuelRations : fuelRations;
+
+              const setCurFood = (val) => isCombinedDirective && activeAllotmentTab === 'secondary' ? setSecondaryFoodRations(val) : setFoodRations(val);
+              const setCurWater = (val) => isCombinedDirective && activeAllotmentTab === 'secondary' ? setSecondaryWaterRations(val) : setWaterRations(val);
+              const setCurMed = (val) => isCombinedDirective && activeAllotmentTab === 'secondary' ? setSecondaryMedicalRations(val) : setMedicalRations(val);
+              const setCurFuel = (val) => isCombinedDirective && activeAllotmentTab === 'secondary' ? setSecondaryFuelRations(val) : setFuelRations(val);
+
+              const applyShortages = () => {
+                setCurFood(shortages.food);
+                setCurWater(shortages.water);
+                setCurMed(shortages.medical);
+                setCurFuel(shortages.fuel);
+              };
+
+              const applyAllFull = () => {
+                setCurFood(3600);
+                setCurWater(7200);
+                setCurMed(400);
+                setCurFuel(2000);
+              };
+
+              const applyClear = () => {
+                setCurFood(0);
+                setCurWater(0);
+                setCurMed(0);
+                setCurFuel(0);
+              };
+
+              return (
+                <div className="mt-4 pt-3 border-t border-slate-700/60">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
+                    <div className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                      <Package size={15} className="text-emerald-400" />
+                      Allotting Rations For: <span className="text-white font-extrabold underline">{currentLocObj?.name}</span>
+                    </div>
+
+                    {/* Quick Shortage Fill Buttons */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={applyShortages}
+                        className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-md text-[11px] font-bold shadow-2xs transition-colors cursor-pointer flex items-center gap-1"
+                        title="Auto-fill only commodities currently in shortage; leave adequate stock at 0"
+                      >
+                        ⚡ Auto-Fill Shortages Only
+                      </button>
+                      <button
+                        type="button"
+                        onClick={applyAllFull}
+                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-md text-[11px] font-semibold transition-colors cursor-pointer"
+                        title="Fill all 4 commodities to maximum batch capacity"
+                      >
+                        Fill Full Capacity
+                      </button>
+                      <button
+                        type="button"
+                        onClick={applyClear}
+                        className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-md text-[11px] transition-colors cursor-pointer"
+                        title="Reset all inputs to 0"
+                      >
+                        Reset
+                      </button>
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-300 flex items-center gap-1.5">
-                    <Truck size={14} className="text-sky-400" />
-                    Automatic Vehicle Selection: <strong className="text-sky-300 font-bold">{autoVehicleName}</strong>
+
+                  <p className="text-[11px] text-slate-300 mb-3 bg-slate-800/60 p-2 rounded-lg border border-slate-700/70">
+                    💡 <strong>Shortage-Driven Replenishment:</strong> Only commodities facing acute outpost shortages receive full replenishment batches. Surplus supplies with healthy reserves remain at 0 units to prevent depot waste and preserve payload.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* Food Rations Card */}
+                    <div className={`p-3 rounded-xl border transition-all ${
+                      shortages.foodShort 
+                        ? 'bg-red-950/30 border-red-500/50 shadow-xs' 
+                        : 'bg-slate-800/80 border-slate-700'
+                    }`}>
+                      <div className="flex justify-between items-start mb-1.5">
+                        <label className="text-[11px] text-slate-300 font-bold block">Food Rations (kg / units)</label>
+                      </div>
+                      
+                      {shortages.foodShort ? (
+                        <div className="text-[10px] font-extrabold text-red-300 bg-red-900/60 border border-red-500/60 px-2 py-0.5 rounded flex items-center gap-1 mb-2">
+                          <AlertTriangle size={11} className="text-red-400 flex-shrink-0" />
+                          <span>CRITICAL ({shortages.foodDays !== null ? `${shortages.foodDays.toFixed(1)}d` : '-'}) ➔ Full Batch (3,600u)</span>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded flex items-center gap-1 mb-2">
+                          <CheckCircle size={11} className="text-emerald-400 flex-shrink-0" />
+                          <span>ADEQUATE ({shortages.foodDays !== null ? `${shortages.foodDays.toFixed(1)}d` : '-'}) ➔ 0 Needed</span>
+                        </div>
+                      )}
+
+                      <input 
+                        type="number"
+                        min="0"
+                        value={currentFood}
+                        onChange={(e) => setCurFood(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white font-mono font-bold focus:ring-1 focus:ring-emerald-500"
+                      />
+                      <div className="text-[10px] text-slate-400 mt-1 flex justify-between">
+                        <span>Standard: 3,600 units</span>
+                        <span className="font-mono text-slate-300 font-semibold">{currentFood * 1} kg</span>
+                      </div>
+                    </div>
+
+                    {/* Potable Water Card */}
+                    <div className={`p-3 rounded-xl border transition-all ${
+                      shortages.waterShort 
+                        ? 'bg-red-950/30 border-red-500/50 shadow-xs' 
+                        : 'bg-slate-800/80 border-slate-700'
+                    }`}>
+                      <div className="flex justify-between items-start mb-1.5">
+                        <label className="text-[11px] text-slate-300 font-bold block">Potable Water (Liters)</label>
+                      </div>
+
+                      {shortages.waterShort ? (
+                        <div className="text-[10px] font-extrabold text-red-300 bg-red-900/60 border border-red-500/60 px-2 py-0.5 rounded flex items-center gap-1 mb-2">
+                          <AlertTriangle size={11} className="text-red-400 flex-shrink-0" />
+                          <span>CRITICAL ({shortages.waterDays !== null ? `${shortages.waterDays.toFixed(1)}d` : '-'}) ➔ Full Batch (7,200L)</span>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded flex items-center gap-1 mb-2">
+                          <CheckCircle size={11} className="text-emerald-400 flex-shrink-0" />
+                          <span>ADEQUATE ({shortages.waterDays !== null ? `${shortages.waterDays.toFixed(1)}d` : '-'}) ➔ 0 Needed</span>
+                        </div>
+                      )}
+
+                      <input 
+                        type="number"
+                        min="0"
+                        value={currentWater}
+                        onChange={(e) => setCurWater(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white font-mono font-bold focus:ring-1 focus:ring-emerald-500"
+                      />
+                      <div className="text-[10px] text-slate-400 mt-1 flex justify-between">
+                        <span>Standard: 7,200 L</span>
+                        <span className="font-mono text-slate-300 font-semibold">{currentWater * 1} kg</span>
+                      </div>
+                    </div>
+
+                    {/* Medical Supplies Card */}
+                    <div className={`p-3 rounded-xl border transition-all ${
+                      shortages.medShort 
+                        ? 'bg-amber-950/30 border-amber-500/50 shadow-xs' 
+                        : 'bg-slate-800/80 border-slate-700'
+                    }`}>
+                      <div className="flex justify-between items-start mb-1.5">
+                        <label className="text-[11px] text-slate-300 font-bold block">Medical Supplies (units)</label>
+                      </div>
+
+                      {shortages.medShort ? (
+                        <div className="text-[10px] font-extrabold text-amber-300 bg-amber-900/60 border border-amber-500/60 px-2 py-0.5 rounded flex items-center gap-1 mb-2">
+                          <AlertTriangle size={11} className="text-amber-400 flex-shrink-0" />
+                          <span>SHORTAGE ({shortages.medDays !== null ? `${shortages.medDays.toFixed(1)}d` : '-'}) ➔ Full Batch (400u)</span>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded flex items-center gap-1 mb-2">
+                          <CheckCircle size={11} className="text-emerald-400 flex-shrink-0" />
+                          <span>ADEQUATE ({shortages.medDays !== null ? `${shortages.medDays.toFixed(1)}d` : '-'}) ➔ 0 Needed</span>
+                        </div>
+                      )}
+
+                      <input 
+                        type="number"
+                        min="0"
+                        value={currentMed}
+                        onChange={(e) => setCurMed(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white font-mono font-bold focus:ring-1 focus:ring-emerald-500"
+                      />
+                      <div className="text-[10px] text-slate-400 mt-1 flex justify-between">
+                        <span>Standard: 400 units</span>
+                        <span className="font-mono text-slate-300 font-semibold">{currentMed * 1} kg</span>
+                      </div>
+                    </div>
+
+                    {/* Diesel Fuel Card */}
+                    <div className={`p-3 rounded-xl border transition-all ${
+                      shortages.fuelShort 
+                        ? 'bg-amber-950/30 border-amber-500/50 shadow-xs' 
+                        : 'bg-slate-800/80 border-slate-700'
+                    }`}>
+                      <div className="flex justify-between items-start mb-1.5">
+                        <label className="text-[11px] text-slate-300 font-bold block">Diesel Fuel (Liters)</label>
+                      </div>
+
+                      {shortages.fuelShort ? (
+                        <div className="text-[10px] font-extrabold text-amber-300 bg-amber-900/60 border border-amber-500/60 px-2 py-0.5 rounded flex items-center gap-1 mb-2">
+                          <AlertTriangle size={11} className="text-amber-400 flex-shrink-0" />
+                          <span>SHORTAGE ({shortages.fuelDays !== null ? `${shortages.fuelDays.toFixed(1)}d` : '-'}) ➔ Full Batch (2,000L)</span>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded flex items-center gap-1 mb-2">
+                          <CheckCircle size={11} className="text-emerald-400 flex-shrink-0" />
+                          <span>ADEQUATE ({shortages.fuelDays !== null ? `${shortages.fuelDays.toFixed(1)}d` : '-'}) ➔ 0 Needed</span>
+                        </div>
+                      )}
+
+                      <input 
+                        type="number"
+                        min="0"
+                        value={currentFuel}
+                        onChange={(e) => setCurFuel(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white font-mono font-bold focus:ring-1 focus:ring-emerald-500"
+                      />
+                      <div className="text-[10px] text-slate-400 mt-1 flex justify-between">
+                        <span>Standard: 2,000 L</span>
+                        <span className="font-mono text-slate-300 font-semibold">{Math.round(currentFuel * 0.85)} kg</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Real-time Payload & Terrain-Matched Vehicle Assignment Banner */}
+                  <div className="mt-4 p-4 bg-slate-900/90 border border-slate-700 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="space-y-1.5 flex-1">
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300">
+                        <div>
+                          Convoy Total Payload: <strong className="font-mono text-emerald-400 text-sm font-black">{totalPayloadWeight.toLocaleString()} kg</strong>
+                        </div>
+                        {isCombinedDirective && secondaryPostObj && (
+                          <div className="text-[11px] text-slate-400 font-mono">
+                            (Stop 1: {primaryPayloadWeight.toLocaleString()} kg + Stop 2: {secondaryPayloadWeight.toLocaleString()} kg)
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="text-xs text-slate-300 flex flex-wrap items-center gap-2">
+                        <span className="flex items-center gap-1 text-slate-400">
+                          <Navigation size={13} className="text-teal-400" />
+                          Route Terrain: <strong className="text-white font-semibold">{routeTerrainName}</strong>
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1 text-sky-300">
+                          <Truck size={14} className="text-sky-400" />
+                          Matched Vehicle: <strong className="text-white font-bold">{autoVehicleName}</strong>
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                          {terrainCertification}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAllotRations}
+                      disabled={isAllotting}
+                      className="w-full md:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      <Send size={15} />
+                      {isAllotting 
+                        ? 'Allotting Rations...' 
+                        : isCombinedDirective 
+                        ? 'Allot Combined Rations & Transmit to Transport Fleet ➔' 
+                        : 'Allot Rations & Transmit to Transport Fleet ➔'}
+                    </button>
                   </div>
                 </div>
-
-                <button
-                  onClick={handleAllotRations}
-                  disabled={isAllotting}
-                  className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
-                >
-                  <Send size={14} />
-                  {isAllotting ? 'Allotting Rations...' : 'Allot Rations & Transmit to Transport Fleet'}
-                </button>
-              </div>
-            </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -1312,6 +1697,9 @@ const DashboardPage = () => {
               depotName={activeTransportDelivery?.source_name || 'Depot Alpha'}
               postName={postNameForTransportDelivery}
               selectedPostId={activeTransportDelivery?.destination_id || 'LOC-FWC'}
+              isCombinedRoute={Boolean(activeTransportDelivery?.notes?.includes('[COMBINED_ROUTE:'))}
+              secondaryPostId={activeTransportDelivery?.notes?.match(/\[COMBINED_ROUTE:[A-Za-z0-9_-]+\+([A-Za-z0-9_-]+)\]/)?.[1]}
+              secondaryPostName={locations.find(l => l.id === activeTransportDelivery?.notes?.match(/\[COMBINED_ROUTE:[A-Za-z0-9_-]+\+([A-Za-z0-9_-]+)\]/)?.[1])?.name}
               assignedVehicle={assignedVeh}
               payloadWeight={displayedPayloadWeight}
               items={transportDeliveryItems}
@@ -1319,6 +1707,8 @@ const DashboardPage = () => {
               onDispatchConvoy={handleDispatchConvoy}
               onCompleteDelivery={handleCompleteDelivery}
               isExecuting={isDispatching || isCompletingDelivery}
+              routeTerrainType={routeTerrainName}
+              terrainCertification={terrainCertification}
             />
           ) : (
             <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center shadow-sm space-y-3">
