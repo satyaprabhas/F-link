@@ -32,8 +32,8 @@ const DashboardPage = () => {
   const [selectedSupplyPostId, setSelectedSupplyPostId] = useState('LOC-FWC');
   const [foodRations, setFoodRations] = useState(3600);
   const [waterRations, setWaterRations] = useState(7200);
-  const [medicalRations, setMedicalRations] = useState(0);
-  const [fuelRations, setFuelRations] = useState(0);
+  const [medicalRations, setMedicalRations] = useState(200);
+  const [fuelRations, setFuelRations] = useState(2000);
 
   // Secondary outpost states for Combined Multi-Stop Corridors
   const [secondaryFoodRations, setSecondaryFoodRations] = useState(0);
@@ -140,16 +140,26 @@ const DashboardPage = () => {
   const secondaryPostObj = secondaryPostId ? locations.find(l => l.id === secondaryPostId) : null;
 
   // ── Shortage-driven evaluation helper ──
-  // If post has a shortage (days <= 3.0 or <= safety stock), allocate full capacity batch:
-  // Food = 3,600 units, Water = 7,200 L, Medical = 400 units, Fuel = 2,000 L.
-  // If post has adequate stock (days > 3.0), do NOT over-allocate (allot 0 units).
+  // Target capacities for forward post garrison:
+  // Food = 6,000 units, Water = 12,200 L, Medical = 1,000 units, Fuel = 5,000 L.
+  // Shortage Deficit = Math.max(0, Target - Current Stock).
+  // E.g., if Medical current stock is 800 units, shortage is 200 units (allots 200, not 0!).
   const getPostShortages = (targetPostId) => {
     const loc = locations.find(l => l.id === targetPostId);
+    const targetCapacities = {
+      Food: 6000,
+      Water: 12200,
+      Medical: 1000,
+      Fuel: 5000
+    };
+
     if (!loc) {
       return {
-        food: 3600, water: 7200, medical: 0, fuel: 0,
+        food: 3600, water: 7200, medical: 200, fuel: 2000,
+        foodTarget: 6000, waterTarget: 12200, medTarget: 1000, fuelTarget: 5000,
+        foodCurrent: 2400, waterCurrent: 5000, medCurrent: 800, fuelCurrent: 3000,
         foodDays: 2.0, waterDays: 2.08, medDays: 20.0, fuelDays: 6.0,
-        foodShort: true, waterShort: true, medShort: false, fuelShort: false
+        foodShort: true, waterShort: true, medShort: true, fuelShort: true
       };
     }
     const inv = loc.inventory_summary || loc.inventory || {};
@@ -158,24 +168,37 @@ const DashboardPage = () => {
     const mDays = inv.Medical ? inv.Medical.days_remaining : null;
     const fuDays = inv.Fuel ? inv.Fuel.days_remaining : null;
 
-    const foodShort = fDays !== null && fDays <= 3.0;
-    const waterShort = wDays !== null && wDays <= 3.0;
-    const medShort = mDays !== null && mDays <= 4.0;
-    const fuelShort = fuDays !== null && fuDays <= 4.0;
+    const currentFood = inv.Food?.quantity ?? 2400;
+    const currentWater = inv.Water?.quantity ?? 5000;
+    const currentMed = inv.Medical?.quantity ?? 800;
+    const currentFuel = inv.Fuel?.quantity ?? 3000;
+
+    const foodDeficit = Math.max(0, targetCapacities.Food - currentFood);
+    const waterDeficit = Math.max(0, targetCapacities.Water - currentWater);
+    const medDeficit = Math.max(0, targetCapacities.Medical - currentMed);
+    const fuelDeficit = Math.max(0, targetCapacities.Fuel - currentFuel);
 
     return {
-      food: foodShort ? 3600 : 0,
-      water: waterShort ? 7200 : 0,
-      medical: medShort ? 400 : 0,
-      fuel: fuelShort ? 2000 : 0,
+      food: foodDeficit,
+      water: waterDeficit,
+      medical: medDeficit,
+      fuel: fuelDeficit,
+      foodTarget: targetCapacities.Food,
+      waterTarget: targetCapacities.Water,
+      medTarget: targetCapacities.Medical,
+      fuelTarget: targetCapacities.Fuel,
+      foodCurrent: currentFood,
+      waterCurrent: currentWater,
+      medCurrent: currentMed,
+      fuelCurrent: currentFuel,
       foodDays: fDays,
       waterDays: wDays,
       medDays: mDays,
       fuelDays: fuDays,
-      foodShort,
-      waterShort,
-      medShort,
-      fuelShort
+      foodShort: foodDeficit > 0,
+      waterShort: waterDeficit > 0,
+      medShort: medDeficit > 0,
+      fuelShort: fuelDeficit > 0
     };
   };
 
@@ -514,7 +537,9 @@ const DashboardPage = () => {
             <div>
               <div className="text-xs text-slate-500 font-bold">Critical Outposts (&le; 2 Days)</div>
               <div className="text-2xl font-black text-red-600 mt-0.5">{criticalLocationsList.length} Posts</div>
-              <div className="text-[10px] text-red-600 font-semibold">{criticalLocationsList[0]?.name || 'Post Bravo'} (Immediate Resupply)</div>
+              <div className="text-[10px] text-red-600 font-semibold truncate max-w-[140px]">
+                {criticalLocationsList.length > 0 ? `${criticalLocationsList[0].name.split('(')[0].trim()} (Immediate Resupply)` : 'All Outposts Stable'}
+              </div>
             </div>
           </div>
 
@@ -525,7 +550,9 @@ const DashboardPage = () => {
             <div>
               <div className="text-xs text-slate-500 font-bold">High Shortage Risk (2–5 Days)</div>
               <div className="text-2xl font-black text-amber-600 mt-0.5">{warningLocationsList.length} Posts</div>
-              <div className="text-[10px] text-amber-700 font-semibold">Post Delta &amp; Post Alpha</div>
+              <div className="text-[10px] text-amber-700 font-semibold truncate max-w-[140px]">
+                {warningLocationsList.length > 0 ? warningLocationsList.map(l => l.name.split('(')[0].trim()).join(' & ') : 'None - Stock Sound'}
+              </div>
             </div>
           </div>
 
@@ -536,7 +563,9 @@ const DashboardPage = () => {
             <div>
               <div className="text-xs text-slate-500 font-bold">Adequate Stock (&gt; 5 Days)</div>
               <div className="text-2xl font-black text-emerald-600 mt-0.5">{normalLocationsList.length} Posts</div>
-              <div className="text-[10px] text-emerald-700 font-semibold">Post Charlie &amp; Post Echo</div>
+              <div className="text-[10px] text-emerald-700 font-semibold truncate max-w-[140px]">
+                {normalLocationsList.length > 0 ? normalLocationsList.map(l => l.name.split('(')[0].trim()).slice(0, 3).join(' & ') : 'None'}
+              </div>
             </div>
           </div>
 
@@ -793,7 +822,9 @@ const DashboardPage = () => {
             <div>
               <div className="text-xs text-slate-500 font-bold">Critical Outposts (&le; 2 Days)</div>
               <div className="text-2xl font-black text-red-600 mt-0.5">{criticalLocationsList.length} Posts</div>
-              <div className="text-[10px] text-red-600 font-semibold">{criticalLocationsList[0]?.name || 'Post Bravo'} (Immediate Resupply)</div>
+              <div className="text-[10px] text-red-600 font-semibold truncate max-w-[140px]">
+                {criticalLocationsList.length > 0 ? `${criticalLocationsList[0].name.split('(')[0].trim()} (Immediate Resupply)` : 'All Outposts Stable'}
+              </div>
             </div>
           </div>
 
@@ -804,7 +835,9 @@ const DashboardPage = () => {
             <div>
               <div className="text-xs text-slate-500 font-bold">High Shortage Risk (2–5 Days)</div>
               <div className="text-2xl font-black text-amber-600 mt-0.5">{warningLocationsList.length} Posts</div>
-              <div className="text-[10px] text-amber-700 font-semibold">Post Delta &amp; Post Alpha</div>
+              <div className="text-[10px] text-amber-700 font-semibold truncate max-w-[140px]">
+                {warningLocationsList.length > 0 ? warningLocationsList.map(l => l.name.split('(')[0].trim()).join(' & ') : 'None - Stock Sound'}
+              </div>
             </div>
           </div>
 
@@ -815,7 +848,9 @@ const DashboardPage = () => {
             <div>
               <div className="text-xs text-slate-500 font-bold">Adequate Stock (&gt; 5 Days)</div>
               <div className="text-2xl font-black text-emerald-600 mt-0.5">{normalLocationsList.length} Posts</div>
-              <div className="text-[10px] text-emerald-700 font-semibold">Post Charlie &amp; Post Echo</div>
+              <div className="text-[10px] text-emerald-700 font-semibold truncate max-w-[140px]">
+                {normalLocationsList.length > 0 ? normalLocationsList.map(l => l.name.split('(')[0].trim()).slice(0, 3).join(' & ') : 'None'}
+              </div>
             </div>
           </div>
 
@@ -1099,10 +1134,10 @@ const DashboardPage = () => {
               };
 
               const applyAllFull = () => {
-                setCurFood(3600);
-                setCurWater(7200);
-                setCurMed(400);
-                setCurFuel(2000);
+                setCurFood(shortages.foodTarget);
+                setCurWater(shortages.waterTarget);
+                setCurMed(shortages.medTarget);
+                setCurFuel(shortages.fuelTarget);
               };
 
               const applyClear = () => {
@@ -1126,17 +1161,17 @@ const DashboardPage = () => {
                         type="button"
                         onClick={applyShortages}
                         className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-md text-[11px] font-bold shadow-2xs transition-colors cursor-pointer flex items-center gap-1"
-                        title="Auto-fill only commodities currently in shortage; leave adequate stock at 0"
+                        title="Auto-fill exact shortage deficits based on outpost basic capacity"
                       >
-                        ⚡ Auto-Fill Shortages Only
+                        ⚡ Auto-Fill Shortage Deficits
                       </button>
                       <button
                         type="button"
                         onClick={applyAllFull}
                         className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-md text-[11px] font-semibold transition-colors cursor-pointer"
-                        title="Fill all 4 commodities to maximum batch capacity"
+                        title="Fill all 4 commodities to maximum target reserve capacity"
                       >
-                        Fill Full Capacity
+                        Fill Target Reserves
                       </button>
                       <button
                         type="button"
@@ -1150,7 +1185,7 @@ const DashboardPage = () => {
                   </div>
 
                   <p className="text-[11px] text-slate-300 mb-3 bg-slate-800/60 p-2 rounded-lg border border-slate-700/70">
-                    💡 <strong>Shortage-Driven Replenishment:</strong> Only commodities facing acute outpost shortages receive full replenishment batches. Surplus supplies with healthy reserves remain at 0 units to prevent depot waste and preserve payload.
+                    💡 <strong>Target-Capacity Shortage Replenishment:</strong> Allotments are calculated based on the exact shortage deficit from each outpost's basic capacity (e.g., 1,000u target - 800u current = 200u shortage allotment). No commodity is set to zero if there is an active deficit.
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1162,17 +1197,24 @@ const DashboardPage = () => {
                     }`}>
                       <div className="flex justify-between items-start mb-1.5">
                         <label className="text-[11px] text-slate-300 font-bold block">Food Rations (kg / units)</label>
+                        <span className="text-[10px] text-slate-400 font-mono">Target: {shortages.foodTarget.toLocaleString()}u</span>
                       </div>
                       
                       {shortages.foodShort ? (
-                        <div className="text-[10px] font-extrabold text-red-300 bg-red-900/60 border border-red-500/60 px-2 py-0.5 rounded flex items-center gap-1 mb-2">
-                          <AlertTriangle size={11} className="text-red-400 flex-shrink-0" />
-                          <span>CRITICAL ({shortages.foodDays !== null ? `${shortages.foodDays.toFixed(1)}d` : '-'}) ➔ Full Batch (3,600u)</span>
+                        <div className="text-[10px] font-extrabold text-red-300 bg-red-900/60 border border-red-500/60 px-2 py-0.5 rounded flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1">
+                            <AlertTriangle size={11} className="text-red-400 flex-shrink-0" />
+                            <span>Shortage ({shortages.foodDays !== null ? `${shortages.foodDays.toFixed(1)}d` : '-'})</span>
+                          </div>
+                          <span className="font-mono text-white">Deficit: +{shortages.food.toLocaleString()}u</span>
                         </div>
                       ) : (
-                        <div className="text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded flex items-center gap-1 mb-2">
-                          <CheckCircle size={11} className="text-emerald-400 flex-shrink-0" />
-                          <span>ADEQUATE ({shortages.foodDays !== null ? `${shortages.foodDays.toFixed(1)}d` : '-'}) ➔ 0 Needed</span>
+                        <div className="text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1">
+                            <CheckCircle size={11} className="text-emerald-400 flex-shrink-0" />
+                            <span>Target Stock Full</span>
+                          </div>
+                          <span className="font-mono">0 Deficit</span>
                         </div>
                       )}
 
@@ -1184,7 +1226,7 @@ const DashboardPage = () => {
                         className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white font-mono font-bold focus:ring-1 focus:ring-emerald-500"
                       />
                       <div className="text-[10px] text-slate-400 mt-1 flex justify-between">
-                        <span>Standard: 3,600 units</span>
+                        <span>Current: {shortages.foodCurrent.toLocaleString()}u</span>
                         <span className="font-mono text-slate-300 font-semibold">{currentFood * 1} kg</span>
                       </div>
                     </div>
@@ -1197,17 +1239,24 @@ const DashboardPage = () => {
                     }`}>
                       <div className="flex justify-between items-start mb-1.5">
                         <label className="text-[11px] text-slate-300 font-bold block">Potable Water (Liters)</label>
+                        <span className="text-[10px] text-slate-400 font-mono">Target: {shortages.waterTarget.toLocaleString()}L</span>
                       </div>
 
                       {shortages.waterShort ? (
-                        <div className="text-[10px] font-extrabold text-red-300 bg-red-900/60 border border-red-500/60 px-2 py-0.5 rounded flex items-center gap-1 mb-2">
-                          <AlertTriangle size={11} className="text-red-400 flex-shrink-0" />
-                          <span>CRITICAL ({shortages.waterDays !== null ? `${shortages.waterDays.toFixed(1)}d` : '-'}) ➔ Full Batch (7,200L)</span>
+                        <div className="text-[10px] font-extrabold text-red-300 bg-red-900/60 border border-red-500/60 px-2 py-0.5 rounded flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1">
+                            <AlertTriangle size={11} className="text-red-400 flex-shrink-0" />
+                            <span>Shortage ({shortages.waterDays !== null ? `${shortages.waterDays.toFixed(1)}d` : '-'})</span>
+                          </div>
+                          <span className="font-mono text-white">Deficit: +{shortages.water.toLocaleString()}L</span>
                         </div>
                       ) : (
-                        <div className="text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded flex items-center gap-1 mb-2">
-                          <CheckCircle size={11} className="text-emerald-400 flex-shrink-0" />
-                          <span>ADEQUATE ({shortages.waterDays !== null ? `${shortages.waterDays.toFixed(1)}d` : '-'}) ➔ 0 Needed</span>
+                        <div className="text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1">
+                            <CheckCircle size={11} className="text-emerald-400 flex-shrink-0" />
+                            <span>Target Stock Full</span>
+                          </div>
+                          <span className="font-mono">0 Deficit</span>
                         </div>
                       )}
 
@@ -1219,7 +1268,7 @@ const DashboardPage = () => {
                         className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white font-mono font-bold focus:ring-1 focus:ring-emerald-500"
                       />
                       <div className="text-[10px] text-slate-400 mt-1 flex justify-between">
-                        <span>Standard: 7,200 L</span>
+                        <span>Current: {shortages.waterCurrent.toLocaleString()}L</span>
                         <span className="font-mono text-slate-300 font-semibold">{currentWater * 1} kg</span>
                       </div>
                     </div>
@@ -1232,17 +1281,24 @@ const DashboardPage = () => {
                     }`}>
                       <div className="flex justify-between items-start mb-1.5">
                         <label className="text-[11px] text-slate-300 font-bold block">Medical Supplies (units)</label>
+                        <span className="text-[10px] text-slate-400 font-mono">Target: {shortages.medTarget.toLocaleString()}u</span>
                       </div>
 
                       {shortages.medShort ? (
-                        <div className="text-[10px] font-extrabold text-amber-300 bg-amber-900/60 border border-amber-500/60 px-2 py-0.5 rounded flex items-center gap-1 mb-2">
-                          <AlertTriangle size={11} className="text-amber-400 flex-shrink-0" />
-                          <span>SHORTAGE ({shortages.medDays !== null ? `${shortages.medDays.toFixed(1)}d` : '-'}) ➔ Full Batch (400u)</span>
+                        <div className="text-[10px] font-extrabold text-amber-300 bg-amber-900/60 border border-amber-500/60 px-2 py-0.5 rounded flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1">
+                            <AlertTriangle size={11} className="text-amber-400 flex-shrink-0" />
+                            <span>Shortage Deficit</span>
+                          </div>
+                          <span className="font-mono text-white">Deficit: +{shortages.medical.toLocaleString()}u</span>
                         </div>
                       ) : (
-                        <div className="text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded flex items-center gap-1 mb-2">
-                          <CheckCircle size={11} className="text-emerald-400 flex-shrink-0" />
-                          <span>ADEQUATE ({shortages.medDays !== null ? `${shortages.medDays.toFixed(1)}d` : '-'}) ➔ 0 Needed</span>
+                        <div className="text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1">
+                            <CheckCircle size={11} className="text-emerald-400 flex-shrink-0" />
+                            <span>Target Stock Full</span>
+                          </div>
+                          <span className="font-mono">0 Deficit</span>
                         </div>
                       )}
 
@@ -1254,7 +1310,7 @@ const DashboardPage = () => {
                         className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white font-mono font-bold focus:ring-1 focus:ring-emerald-500"
                       />
                       <div className="text-[10px] text-slate-400 mt-1 flex justify-between">
-                        <span>Standard: 400 units</span>
+                        <span>Current: {shortages.medCurrent.toLocaleString()}u</span>
                         <span className="font-mono text-slate-300 font-semibold">{currentMed * 1} kg</span>
                       </div>
                     </div>
@@ -1267,17 +1323,24 @@ const DashboardPage = () => {
                     }`}>
                       <div className="flex justify-between items-start mb-1.5">
                         <label className="text-[11px] text-slate-300 font-bold block">Diesel Fuel (Liters)</label>
+                        <span className="text-[10px] text-slate-400 font-mono">Target: {shortages.fuelTarget.toLocaleString()}L</span>
                       </div>
 
                       {shortages.fuelShort ? (
-                        <div className="text-[10px] font-extrabold text-amber-300 bg-amber-900/60 border border-amber-500/60 px-2 py-0.5 rounded flex items-center gap-1 mb-2">
-                          <AlertTriangle size={11} className="text-amber-400 flex-shrink-0" />
-                          <span>SHORTAGE ({shortages.fuelDays !== null ? `${shortages.fuelDays.toFixed(1)}d` : '-'}) ➔ Full Batch (2,000L)</span>
+                        <div className="text-[10px] font-extrabold text-amber-300 bg-amber-900/60 border border-amber-500/60 px-2 py-0.5 rounded flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1">
+                            <AlertTriangle size={11} className="text-amber-400 flex-shrink-0" />
+                            <span>Shortage Deficit</span>
+                          </div>
+                          <span className="font-mono text-white">Deficit: +{shortages.fuel.toLocaleString()}L</span>
                         </div>
                       ) : (
-                        <div className="text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded flex items-center gap-1 mb-2">
-                          <CheckCircle size={11} className="text-emerald-400 flex-shrink-0" />
-                          <span>ADEQUATE ({shortages.fuelDays !== null ? `${shortages.fuelDays.toFixed(1)}d` : '-'}) ➔ 0 Needed</span>
+                        <div className="text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1">
+                            <CheckCircle size={11} className="text-emerald-400 flex-shrink-0" />
+                            <span>Target Stock Full</span>
+                          </div>
+                          <span className="font-mono">0 Deficit</span>
                         </div>
                       )}
 
@@ -1289,7 +1352,7 @@ const DashboardPage = () => {
                         className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white font-mono font-bold focus:ring-1 focus:ring-emerald-500"
                       />
                       <div className="text-[10px] text-slate-400 mt-1 flex justify-between">
-                        <span>Standard: 2,000 L</span>
+                        <span>Current: {shortages.fuelCurrent.toLocaleString()}L</span>
                         <span className="font-mono text-slate-300 font-semibold">{Math.round(currentFuel * 0.85)} kg</span>
                       </div>
                     </div>
@@ -1457,7 +1520,9 @@ const DashboardPage = () => {
             <div>
               <div className="text-xs text-slate-500 font-bold">Critical Outposts (&le; 2 Days)</div>
               <div className="text-2xl font-black text-red-600 mt-0.5">{criticalLocationsList.length} Posts</div>
-              <div className="text-[10px] text-red-600 font-semibold">{criticalLocationsList[0]?.name || 'Post Bravo'} (Immediate Resupply)</div>
+              <div className="text-[10px] text-red-600 font-semibold truncate max-w-[140px]">
+                {criticalLocationsList.length > 0 ? `${criticalLocationsList[0].name.split('(')[0].trim()} (Immediate Resupply)` : 'All Outposts Stable'}
+              </div>
             </div>
           </div>
 
@@ -1468,7 +1533,9 @@ const DashboardPage = () => {
             <div>
               <div className="text-xs text-slate-500 font-bold">High Shortage Risk (2–5 Days)</div>
               <div className="text-2xl font-black text-amber-600 mt-0.5">{warningLocationsList.length} Posts</div>
-              <div className="text-[10px] text-amber-700 font-semibold">Post Delta &amp; Post Alpha</div>
+              <div className="text-[10px] text-amber-700 font-semibold truncate max-w-[140px]">
+                {warningLocationsList.length > 0 ? warningLocationsList.map(l => l.name.split('(')[0].trim()).join(' & ') : 'None - Stock Sound'}
+              </div>
             </div>
           </div>
 
@@ -1479,7 +1546,9 @@ const DashboardPage = () => {
             <div>
               <div className="text-xs text-slate-500 font-bold">Adequate Stock (&gt; 5 Days)</div>
               <div className="text-2xl font-black text-emerald-600 mt-0.5">{normalLocationsList.length} Posts</div>
-              <div className="text-[10px] text-emerald-700 font-semibold">Post Charlie &amp; Post Echo</div>
+              <div className="text-[10px] text-emerald-700 font-semibold truncate max-w-[140px]">
+                {normalLocationsList.length > 0 ? normalLocationsList.map(l => l.name.split('(')[0].trim()).slice(0, 3).join(' & ') : 'None'}
+              </div>
             </div>
           </div>
 
@@ -1709,6 +1778,8 @@ const DashboardPage = () => {
               isExecuting={isDispatching || isCompletingDelivery}
               routeTerrainType={routeTerrainName}
               terrainCertification={terrainCertification}
+              postDays={postForTransportDelivery ? Math.round(getMinDays(postForTransportDelivery) * 10) / 10 : undefined}
+              postPriority={postForTransportDelivery ? (getMinDays(postForTransportDelivery) <= 2 ? 'Critical' : getMinDays(postForTransportDelivery) <= 5 ? 'High Risk' : 'Adequate') : undefined}
             />
           ) : (
             <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center shadow-sm space-y-3">

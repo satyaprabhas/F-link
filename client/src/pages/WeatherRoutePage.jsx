@@ -102,10 +102,36 @@ export default function WeatherRoutePage() {
     }
   };
 
+  // Dynamically merge static post profiles with live database inventory and status
+  const dynamicPosts = FORWARD_POSTS.map(base => {
+    const liveLoc = locations.find(l => l.id === base.id);
+    if (!liveLoc) return base;
+    const inv = liveLoc.inventory_summary || liveLoc.inventory || {};
+    const foodQty = inv.Food ? inv.Food.quantity : base.food;
+    const waterQty = inv.Water ? inv.Water.quantity : base.water;
+    const medQty = inv.Medical ? inv.Medical.quantity : 800;
+    const fuelQty = inv.Fuel ? inv.Fuel.quantity : 3000;
+    const daysArr = ['Food', 'Water', 'Medical', 'Fuel']
+      .map(c => inv[c]?.days_remaining)
+      .filter(d => d !== null && d !== undefined);
+    const minDays = daysArr.length > 0 ? Math.min(...daysArr) : base.days;
+    const priority = minDays <= 2 ? 'Critical' : minDays <= 5 ? 'High Risk' : 'Adequate';
+    return {
+      ...base,
+      food: foodQty,
+      water: waterQty,
+      medical: medQty,
+      fuel: fuelQty,
+      days: Math.round(minDays * 10) / 10,
+      priority,
+      status: liveLoc.status || (minDays > 2 ? 'Operational' : 'Critical')
+    };
+  });
+
   // Switch active post and adjust suggested depot and route
   const handleSelectPost = (postId) => {
     setSelectedPostId(postId);
-    const postObj = FORWARD_POSTS.find(p => p.id === postId) || FORWARD_POSTS[0];
+    const postObj = dynamicPosts.find(p => p.id === postId) || dynamicPosts[0];
     setSelectedRouteId(postObj.recommendedRouteId || 'R-01');
     setDirectiveDispatched(false);
     setStatusNotice(null);
@@ -124,8 +150,8 @@ export default function WeatherRoutePage() {
     try {
       setIsSubmitting(true);
       setStatusNotice(null);
-      const postObj = FORWARD_POSTS.find(p => p.id === selectedPostId) || FORWARD_POSTS[0];
-      const secPostObj = isCombinedRoute ? (FORWARD_POSTS.find(p => p.id === secondaryPostId) || null) : null;
+      const postObj = dynamicPosts.find(p => p.id === selectedPostId) || dynamicPosts[0];
+      const secPostObj = isCombinedRoute ? (dynamicPosts.find(p => p.id === secondaryPostId) || null) : null;
       const depotName = selectedDepotId === 'LOC-ALPHA' ? 'Depot Alpha' : 'Depot Bravo';
       const corridorName = getCorridorName(selectedPostId, selectedRouteId);
       
@@ -173,8 +199,8 @@ export default function WeatherRoutePage() {
     }
   };
 
-  const currentPost = FORWARD_POSTS.find(p => p.id === selectedPostId) || FORWARD_POSTS[0];
-  const secondaryPost = isCombinedRoute ? (FORWARD_POSTS.find(p => p.id === secondaryPostId) || null) : null;
+  const currentPost = dynamicPosts.find(p => p.id === selectedPostId) || dynamicPosts[0];
+  const secondaryPost = isCombinedRoute ? (dynamicPosts.find(p => p.id === secondaryPostId) || null) : null;
 
   return (
     <div className="space-y-6">
@@ -220,7 +246,7 @@ export default function WeatherRoutePage() {
 
         {/* 5 Post Selection Tabs / Buttons */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
-          {FORWARD_POSTS.map(post => {
+          {dynamicPosts.map(post => {
             const isSelected = selectedPostId === post.id;
             return (
               <button
@@ -440,6 +466,8 @@ export default function WeatherRoutePage() {
           isCombinedRoute={isCombinedRoute}
           secondaryPostId={secondaryPostId}
           secondaryPostName={secondaryPost?.shortName}
+          postDays={currentPost.days}
+          postPriority={currentPost.priority}
         />
       </div>
 

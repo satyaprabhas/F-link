@@ -445,17 +445,104 @@ module.exports = (db) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
+  // ── COMPLETE DELIVERY (Executed by Transport Coordinator or when status updated to Delivered) ──
+  const handleDeliveryCompletion = (req, res) => {
+    try {
+      let del = null;
+      if (req.params.id && req.params.id !== 'active') {
+        del = db.prepare("SELECT * FROM deliveries WHERE id=?").get(req.params.id);
+      }
+      if (!del) {
+        del = db.prepare("SELECT * FROM deliveries WHERE status IN ('Ready for Dispatch','En Route','Loading','Planned','Pending Supply Allotment') ORDER BY created_at DESC LIMIT 1").get();
+      }
+      if (!del) {
+        // Last fallback: get any delivery not yet delivered
+        del = db.prepare("SELECT * FROM deliveries WHERE status!='Delivered' ORDER BY created_at DESC LIMIT 1").get();
+      }
+      if (!del) {
+        return res.status(404).json({ error: 'No active delivery found to mark as completed' });
+      }
+
+      // 1. Mark delivery delivered
+      db.prepare("UPDATE deliveries SET status='Delivered', actual_date=datetime('now') WHERE id=?").run(del.id);
+
+      // 2. Add cargo quantities to destination inventory
+      let parsed = {};
+      try { parsed = typeof del.items === 'string' ? JSON.parse(del.items) : (del.items || {}); } catch {}
+      
+      const primaryItems = parsed.primary_items || parsed;
+      const secondaryItems = parsed.secondary_items;
+      const secondaryDest = parsed.secondary_destination_id;
+
+      const replenishPost = (targetLocationId, itemList) => {
+        if (!targetLocationId || !itemList) return;
+        for (const [key, rawVal] of Object.entries(itemList)) {
+          const qty = Number(rawVal) || 0;
+          if (qty > 0) {
+            const k = key.toLowerCase();
+            const cat = k.includes('food') ? 'Food' 
+                      : k.includes('water') ? 'Water' 
+                      : (k.includes('med') || k.includes('health')) ? 'Medical' 
+                      : (k.includes('fuel') || k.includes('diesel')) ? 'Fuel' 
+                      : key;
+            const invItem = db.prepare("SELECT id, quantity FROM inventory WHERE location_id=? AND (category=? OR item LIKE ?)").get(targetLocationId, cat, `%${cat}%`);
+            if (invItem) {
+              db.prepare("UPDATE inventory SET quantity=quantity+?, incoming_quantity=0, last_updated=datetime('now') WHERE id=?")
+                .run(qty, invItem.id);
+            } else {
+              db.prepare("INSERT INTO inventory (location_id, item, category, quantity, unit, daily_consumption, safety_stock, incoming_quantity, last_updated) VALUES (?, ?, ?, ?, 'units', 100, 200, 0, datetime('now'))")
+                .run(targetLocationId, key, cat, qty);
+            }
+          }
+        }
+        // Clear all remaining incoming quantities for destination post
+        db.prepare("UPDATE inventory SET incoming_quantity=0 WHERE location_id=?").run(targetLocationId);
+        // Mark all active alerts for this post as resolved
+        db.prepare("UPDATE alerts SET status='Resolved', resolved_at=datetime('now'), resolved_by=? WHERE location_id=? AND status!='Resolved'")
+          .run(req.user?.username || 'Transport Coordinator', targetLocationId);
+        // Mark any pending recommendations as approved
+        db.prepare("UPDATE recommendations SET status='Approved', decided_at=datetime('now'), decision_notes='Delivery completed; supplies replenished' WHERE location_id=? AND status='Pending'")
+          .run(targetLocationId);
+        // Mark post location status as Operational
+        db.prepare("UPDATE locations SET status='Operational' WHERE id=?").run(targetLocationId);
+      };
+
+      replenishPost(del.destination_id, primaryItems);
+      if (secondaryDest && secondaryItems) {
+        replenishPost(secondaryDest, secondaryItems);
+      }
+
+      // 3. Free up vehicle
+      if (del.vehicle_id) {
+        db.prepare("UPDATE vehicles SET status='Available', assignment=null, current_location_id=? WHERE id=?")
+          .run(del.destination_id, del.vehicle_id);
+      }
+
+      auditLog(req.user?.username, req.user?.role, 'DELIVER', 'Transport', `Confirmed delivery ${del.id} at ${del.destination_id}${secondaryDest ? ' + ' + secondaryDest : ''}. All rations received.`, del.destination_id, 'En Route', 'Delivered');
+
+      res.json({ success: true, message: 'Delivery completed and post inventory replenished', delivery_id: del.id });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  };
+
   router.put('/deliveries/:id', (req, res) => {
     try {
       const prev = db.prepare("SELECT * FROM deliveries WHERE id=?").get(req.params.id);
       if (!prev) return res.status(404).json({ error: 'Delivery not found' });
       const { status, planned_date, vehicle_id, route_id, items, eta, notes } = req.body;
+      if (status === 'Delivered') {
+        return handleDeliveryCompletion(req, res);
+      }
       db.prepare("UPDATE deliveries SET status=COALESCE(?,status), planned_date=COALESCE(?,planned_date), vehicle_id=COALESCE(?,vehicle_id), route_id=COALESCE(?,route_id), items=COALESCE(?,items), eta=COALESCE(?,eta), notes=COALESCE(?,notes) WHERE id=?")
         .run(status, planned_date, vehicle_id, route_id, items ? JSON.stringify(items) : null, eta, notes, req.params.id);
       auditLog(req.user?.username, req.user?.role, 'UPDATE', 'Delivery', `Updated delivery ${req.params.id}`, null, prev.status, status || 'modified');
       res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
+
+  router.post('/deliveries/:id/deliver', handleDeliveryCompletion);
+  router.put('/deliveries/:id/deliver', handleDeliveryCompletion);
+  router.post('/deliveries/:id/complete', handleDeliveryCompletion);
+  router.put('/deliveries/:id/complete', handleDeliveryCompletion);
 
   // ── RESUPPLY DIRECTIVE (Issued by Logistics Officer) ──
   router.post('/resupply/directive', (req, res) => {
@@ -626,7 +713,7 @@ module.exports = (db) => {
       db.prepare("UPDATE deliveries SET items=?, vehicle_id=?, status='Ready for Dispatch', notes=? WHERE id=?")
         .run(JSON.stringify(finalItemsPayload || {}), selectedVehicleId, fullNotes, del.id);
 
-      // Update destination post incoming inventory quantity
+      // Update destination post incoming inventory quantity for all commodities
       if (food > 0) {
         db.prepare("UPDATE inventory SET incoming_quantity=?, expected_delivery=?, last_updated=datetime('now') WHERE location_id=? AND (category='Food' OR item LIKE '%Food%')")
           .run(food, del.planned_date, del.destination_id);
@@ -635,11 +722,21 @@ module.exports = (db) => {
         db.prepare("UPDATE inventory SET incoming_quantity=?, expected_delivery=?, last_updated=datetime('now') WHERE location_id=? AND (category='Water' OR item LIKE '%Water%')")
           .run(water, del.planned_date, del.destination_id);
       }
+      if (med > 0) {
+        db.prepare("UPDATE inventory SET incoming_quantity=?, expected_delivery=?, last_updated=datetime('now') WHERE location_id=? AND (category='Medical' OR item LIKE '%Med%')")
+          .run(med, del.planned_date, del.destination_id);
+      }
+      if (fuel > 0) {
+        db.prepare("UPDATE inventory SET incoming_quantity=?, expected_delivery=?, last_updated=datetime('now') WHERE location_id=? AND (category='Fuel' OR item LIKE '%Fuel%')")
+          .run(fuel, del.planned_date, del.destination_id);
+      }
 
       // If secondary destination has items, update incoming inventory for secondary post too
       if (secondary_destination_id && secondary_items) {
         const sFood = Number(secondary_items['Food Rations'] ?? secondary_items['Food'] ?? 0);
         const sWater = Number(secondary_items['Potable Water'] ?? secondary_items['Water'] ?? 0);
+        const sMed = Number(secondary_items['Medical Supplies'] ?? secondary_items['Medical'] ?? 0);
+        const sFuel = Number(secondary_items['Diesel Fuel'] ?? secondary_items['Fuel'] ?? 0);
         if (sFood > 0) {
           db.prepare("UPDATE inventory SET incoming_quantity=?, expected_delivery=?, last_updated=datetime('now') WHERE location_id=? AND (category='Food' OR item LIKE '%Food%')")
             .run(sFood, del.planned_date, secondary_destination_id);
@@ -647,6 +744,14 @@ module.exports = (db) => {
         if (sWater > 0) {
           db.prepare("UPDATE inventory SET incoming_quantity=?, expected_delivery=?, last_updated=datetime('now') WHERE location_id=? AND (category='Water' OR item LIKE '%Water%')")
             .run(sWater, del.planned_date, secondary_destination_id);
+        }
+        if (sMed > 0) {
+          db.prepare("UPDATE inventory SET incoming_quantity=?, expected_delivery=?, last_updated=datetime('now') WHERE location_id=? AND (category='Medical' OR item LIKE '%Med%')")
+            .run(sMed, del.planned_date, secondary_destination_id);
+        }
+        if (sFuel > 0) {
+          db.prepare("UPDATE inventory SET incoming_quantity=?, expected_delivery=?, last_updated=datetime('now') WHERE location_id=? AND (category='Fuel' OR item LIKE '%Fuel%')")
+            .run(sFuel, del.planned_date, secondary_destination_id);
         }
       }
 
@@ -674,77 +779,7 @@ module.exports = (db) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  // ── COMPLETE DELIVERY (Executed by Transport Coordinator) ──
-  const handleDeliveryCompletion = (req, res) => {
-    try {
-      let del = null;
-      if (req.params.id && req.params.id !== 'active') {
-        del = db.prepare("SELECT * FROM deliveries WHERE id=?").get(req.params.id);
-      }
-      if (!del) {
-        del = db.prepare("SELECT * FROM deliveries WHERE status IN ('Ready for Dispatch','En Route','Loading','Planned','Pending Supply Allotment') ORDER BY created_at DESC LIMIT 1").get();
-      }
-      if (!del) {
-        // Last fallback: get any delivery not yet delivered
-        del = db.prepare("SELECT * FROM deliveries WHERE status!='Delivered' ORDER BY created_at DESC LIMIT 1").get();
-      }
-      if (!del) {
-        return res.status(404).json({ error: 'No active delivery found to mark as completed' });
-      }
 
-      // 1. Mark delivery delivered
-      db.prepare("UPDATE deliveries SET status='Delivered', actual_date=datetime('now') WHERE id=?").run(del.id);
-
-      // 2. Add cargo quantities to destination inventory
-      let parsed = {};
-      try { parsed = typeof del.items === 'string' ? JSON.parse(del.items) : (del.items || {}); } catch {}
-      
-      const primaryItems = parsed.primary_items || parsed;
-      const secondaryItems = parsed.secondary_items;
-      const secondaryDest = parsed.secondary_destination_id;
-
-      const replenishPost = (targetLocationId, itemList) => {
-        if (!targetLocationId || !itemList) return;
-        for (const [key, rawVal] of Object.entries(itemList)) {
-          const qty = Number(rawVal) || 0;
-          if (qty > 0) {
-            const cat = key.includes('Food') ? 'Food' : key.includes('Water') ? 'Water' : key.includes('Med') ? 'Medical' : key.includes('Fuel') ? 'Fuel' : key;
-            const invItem = db.prepare("SELECT id, quantity FROM inventory WHERE location_id=? AND (category=? OR item LIKE ?)").get(targetLocationId, cat, `%${cat}%`);
-            if (invItem) {
-              db.prepare("UPDATE inventory SET quantity=quantity+?, incoming_quantity=0, last_updated=datetime('now') WHERE id=?")
-                .run(qty, invItem.id);
-            } else {
-              db.prepare("INSERT INTO inventory (location_id, item, category, quantity, unit, daily_consumption, safety_stock, incoming_quantity, last_updated) VALUES (?, ?, ?, ?, 'units', 100, 200, 0, datetime('now'))")
-                .run(targetLocationId, key, cat, qty);
-            }
-          }
-        }
-        db.prepare("UPDATE alerts SET status='Resolved', resolved_at=datetime('now'), resolved_by=? WHERE location_id=? AND status!='Resolved'")
-          .run(req.user?.username || 'Transport Coordinator', targetLocationId);
-        db.prepare("UPDATE locations SET status='Operational' WHERE id=?").run(targetLocationId);
-      };
-
-      replenishPost(del.destination_id, primaryItems);
-      if (secondaryDest && secondaryItems) {
-        replenishPost(secondaryDest, secondaryItems);
-      }
-
-      // 3. Free up vehicle
-      if (del.vehicle_id) {
-        db.prepare("UPDATE vehicles SET status='Available', assignment=null, current_location_id=? WHERE id=?")
-          .run(del.destination_id, del.vehicle_id);
-      }
-
-      auditLog(req.user?.username, req.user?.role, 'DELIVER', 'Transport', `Confirmed delivery ${del.id} at ${del.destination_id}${secondaryDest ? ' + ' + secondaryDest : ''}. All rations received.`, del.destination_id, 'En Route', 'Delivered');
-
-      res.json({ success: true, message: 'Delivery completed and post inventory replenished', delivery_id: del.id });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-  };
-
-  router.post('/deliveries/:id/deliver', handleDeliveryCompletion);
-  router.put('/deliveries/:id/deliver', handleDeliveryCompletion);
-  router.post('/deliveries/:id/complete', handleDeliveryCompletion);
-  router.put('/deliveries/:id/complete', handleDeliveryCompletion);
 
   // ── ALERTS ──
   router.get('/alerts', (req, res) => {

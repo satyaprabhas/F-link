@@ -544,7 +544,9 @@ export default function MapRoutePlanning({
   secondaryPostId = null,
   secondaryPostName = null,
   routeTerrainType = null,
-  terrainCertification = null
+  terrainCertification = null,
+  postDays = undefined,
+  postPriority = undefined
 }) {
   const [zoom, setZoom] = useState(1);
   const [showTerrainDetails, setShowTerrainDetails] = useState(true);
@@ -558,8 +560,15 @@ export default function MapRoutePlanning({
     Object.values(POST_CONFIGS).find(p => (postName || '').includes(p.name)) || 
     POST_CONFIGS['LOC-FWC'];
 
+  const activePriorityLevel = postPriority || basePost?.priorityLevel || 'Critical';
+  const activePriorityText = (postDays !== undefined && postPriority)
+    ? `${postPriority} (${postDays}d)`
+    : (basePost?.priority || 'Critical (2.0d)');
+
   const postConfig = {
     ...basePost,
+    priority: activePriorityText,
+    priorityLevel: activePriorityLevel,
     pos: basePost?.pos || { x: 340, y: 320 },
     recommendedRouteId: basePost?.recommendedRouteId || 'R-03',
     hazard: basePost?.hazard || {
