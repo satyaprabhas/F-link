@@ -76,12 +76,12 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen w-full bg-white flex flex-col lg:flex-row">
       
-      {/* ── LEFT HALF: Full Half-Page Hero Graphic (Edge-to-Edge) ── */}
-      <div className="w-full lg:w-1/2 min-h-[340px] sm:min-h-[440px] lg:min-h-screen relative overflow-hidden bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-200 flex items-stretch">
+      {/* ── LEFT HALF: Full Half-Page Hero Graphic (Edge-to-Edge Full Half Fit Without Cropping) ── */}
+      <div className="w-full lg:w-1/2 min-h-[380px] lg:min-h-screen relative overflow-hidden bg-white border-b lg:border-b-0 lg:border-r border-slate-200 flex items-stretch">
         <img 
           src="/login-hero.jpg" 
           alt="Stronger Supply Lines, Safer Operations" 
-          className="w-full h-full object-cover object-center select-none block"
+          className="w-full h-full object-fill select-none block"
         />
       </div>
 
