@@ -23,7 +23,7 @@ const DashboardPage = () => {
   const [dataQuality, setDataQuality] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { user, refreshData } = useAppContext();
+  const { user, refreshData, t, language } = useAppContext();
   const navigate = useNavigate();
 
   const roleName = user?.role || 'Logistics Officer';
@@ -470,13 +470,13 @@ const DashboardPage = () => {
 
   if (loading) return (
     <div className="flex items-center justify-center h-64 text-slate-500">
-      <RefreshCw className="animate-spin mr-2 text-teal-700" size={20} /> Loading {roleName} Dashboard...
+      <RefreshCw className="animate-spin mr-2 text-teal-700" size={20} /> {t('Loading')} {t(roleName)}...
     </div>
   );
 
   if (error) return (
     <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-      Error: {error} <button onClick={fetchDashboard} className="ml-4 underline font-semibold cursor-pointer">Retry</button>
+      {t('Error')}: {error} <button onClick={fetchDashboard} className="ml-4 underline font-semibold cursor-pointer">{t('Retry')}</button>
     </div>
   );
 
@@ -496,12 +496,12 @@ const DashboardPage = () => {
           <div>
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 bg-teal-100 text-teal-900 text-[11px] font-extrabold rounded uppercase tracking-wide">
-                Logistics Command Portal
+                {t('Logistics Command Portal')}
               </span>
-              <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Forward Outposts Stock Availability</h2>
+              <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">{t('Forward Outposts Stock Availability')}</h2>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Posts prioritized strictly by days of supply remaining. Select any post to plan route corridors.
+              {t('Posts prioritized strictly by days of supply remaining. Select any post to plan route corridors.')}
             </p>
           </div>
           
@@ -510,18 +510,18 @@ const DashboardPage = () => {
               onClick={() => navigate('/weather-route')} 
               className="px-3.5 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
             >
-              <Navigation size={14} /> Routes &amp; Weather Planning &rarr;
+              <Navigation size={14} /> {t('Routes & Weather Planning')} &rarr;
             </button>
             <button 
               onClick={() => navigate('/recommendations')} 
               className="px-3.5 py-1.5 bg-white border border-teal-600 text-teal-800 hover:bg-teal-50 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
             >
-              <Lightbulb size={14} className="text-teal-700" /> AI Recommendations
+              <Lightbulb size={14} className="text-teal-700" /> {t('AI Recommendations')}
             </button>
             <button 
               onClick={fetchDashboard} 
               className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
-              title="Refresh Data"
+              title={t('Refresh Data')}
             >
               <RefreshCw size={13} />
             </button>
@@ -535,10 +535,10 @@ const DashboardPage = () => {
               <AlertTriangle size={22} />
             </div>
             <div>
-              <div className="text-xs text-slate-500 font-bold">Critical Outposts (&le; 2 Days)</div>
-              <div className="text-2xl font-black text-red-600 mt-0.5">{criticalLocationsList.length} Posts</div>
+              <div className="text-xs text-slate-500 font-bold">{t('Critical Outposts (≤ 2 Days)')}</div>
+              <div className="text-2xl font-black text-red-600 mt-0.5">{criticalLocationsList.length} {t('Posts')}</div>
               <div className="text-[10px] text-red-600 font-semibold truncate max-w-[140px]">
-                {criticalLocationsList.length > 0 ? `${criticalLocationsList[0].name.split('(')[0].trim()} (Immediate Resupply)` : 'All Outposts Stable'}
+                {criticalLocationsList.length > 0 ? `${t(criticalLocationsList[0].name.split('(')[0].trim())} (${t('Immediate Resupply')})` : t('All Outposts Stable')}
               </div>
             </div>
           </div>
@@ -548,10 +548,10 @@ const DashboardPage = () => {
               <ShieldAlert size={22} />
             </div>
             <div>
-              <div className="text-xs text-slate-500 font-bold">High Shortage Risk (2–5 Days)</div>
-              <div className="text-2xl font-black text-amber-600 mt-0.5">{warningLocationsList.length} Posts</div>
+              <div className="text-xs text-slate-500 font-bold">{t('High Shortage Risk (2–5 Days)')}</div>
+              <div className="text-2xl font-black text-amber-600 mt-0.5">{warningLocationsList.length} {t('Posts')}</div>
               <div className="text-[10px] text-amber-700 font-semibold truncate max-w-[140px]">
-                {warningLocationsList.length > 0 ? warningLocationsList.map(l => l.name.split('(')[0].trim()).join(' & ') : 'None - Stock Sound'}
+                {warningLocationsList.length > 0 ? warningLocationsList.map(l => t(l.name.split('(')[0].trim())).join(' & ') : t('None - Stock Sound')}
               </div>
             </div>
           </div>
@@ -561,10 +561,10 @@ const DashboardPage = () => {
               <Activity size={22} />
             </div>
             <div>
-              <div className="text-xs text-slate-500 font-bold">Adequate Stock (&gt; 5 Days)</div>
-              <div className="text-2xl font-black text-emerald-600 mt-0.5">{normalLocationsList.length} Posts</div>
+              <div className="text-xs text-slate-500 font-bold">{t('Adequate Stock (> 5 Days)')}</div>
+              <div className="text-2xl font-black text-emerald-600 mt-0.5">{normalLocationsList.length} {t('Posts')}</div>
               <div className="text-[10px] text-emerald-700 font-semibold truncate max-w-[140px]">
-                {normalLocationsList.length > 0 ? normalLocationsList.map(l => l.name.split('(')[0].trim()).slice(0, 3).join(' & ') : 'None'}
+                {normalLocationsList.length > 0 ? normalLocationsList.map(l => t(l.name.split('(')[0].trim())).slice(0, 3).join(' & ') : t('None')}
               </div>
             </div>
           </div>
@@ -574,9 +574,9 @@ const DashboardPage = () => {
               <Package size={22} />
             </div>
             <div>
-              <div className="text-xs text-slate-500 font-bold">Total Monitored Outposts</div>
-              <div className="text-2xl font-black text-slate-900 mt-0.5">{forwardLocationsSorted.length} Posts</div>
-              <div className="text-[10px] text-teal-700 font-semibold">All Sectors Monitored</div>
+              <div className="text-xs text-slate-500 font-bold">{t('Total Monitored Outposts')}</div>
+              <div className="text-2xl font-black text-slate-900 mt-0.5">{forwardLocationsSorted.length} {t('Posts')}</div>
+              <div className="text-[10px] text-teal-700 font-semibold">{t('All Sectors Monitored')}</div>
             </div>
           </div>
         </div>
@@ -587,14 +587,14 @@ const DashboardPage = () => {
             <div>
               <h3 className="font-extrabold text-slate-900 text-sm sm:text-base flex items-center gap-2">
                 <List size={18} className="text-teal-700" />
-                Forward Posts Stock Availability (Ranked by Criticality Priority)
+                {t('Forward Posts Stock Availability (Ranked by Criticality Priority)')}
               </h3>
               <p className="text-xs text-slate-500">
-                Sorted strictly by days remaining. Outposts facing stockout within 2 days appear at the top.
+                {t('Sorted strictly by days remaining. Outposts facing stockout within 2 days appear at the top.')}
               </p>
             </div>
             <span className="text-xs text-slate-500 font-mono bg-white px-2.5 py-1 rounded-md border border-slate-200">
-              Click 'Plan Route' to dispatch resupply
+              {t("Click 'Plan Route' to dispatch resupply")}
             </span>
           </div>
 
@@ -602,14 +602,14 @@ const DashboardPage = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 text-left text-xs uppercase tracking-wider font-semibold">
-                  <th className="px-4 py-3.5 text-center">Priority Rank</th>
-                  <th className="px-4 py-3.5">Forward Post &amp; Sector</th>
-                  <th className="px-3 py-3.5 text-center">Food Rations</th>
-                  <th className="px-3 py-3.5 text-center">Potable Water</th>
-                  <th className="px-3 py-3.5 text-center">Medical Units</th>
-                  <th className="px-3 py-3.5 text-center">Diesel Fuel</th>
-                  <th className="px-4 py-3.5 text-center">Critical Days</th>
-                  <th className="px-4 py-3.5 text-center">Actions</th>
+                  <th className="px-4 py-3.5 text-center">{t('Priority Rank')}</th>
+                  <th className="px-4 py-3.5">{t('Forward Post & Sector')}</th>
+                  <th className="px-3 py-3.5 text-center">{t('Food Rations')}</th>
+                  <th className="px-3 py-3.5 text-center">{t('Potable Water')}</th>
+                  <th className="px-3 py-3.5 text-center">{t('Medical Units')}</th>
+                  <th className="px-3 py-3.5 text-center">{t('Diesel Fuel')}</th>
+                  <th className="px-4 py-3.5 text-center">{t('Critical Days')}</th>
+                  <th className="px-4 py-3.5 text-center">{t('Actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -639,17 +639,17 @@ const DashboardPage = () => {
                           isWarning ? 'bg-amber-500 text-slate-900 font-bold' :
                           'bg-emerald-100 text-emerald-800'
                         }`}>
-                          #{index + 1} {isCritical ? 'CRITICAL' : isWarning ? 'HIGH RISK' : 'ADEQUATE'}
+                          #{index + 1} {isCritical ? t('CRITICAL') : isWarning ? t('HIGH RISK') : t('ADEQUATE')}
                         </span>
                       </td>
 
                       {/* Post Name & Troops */}
                       <td className="px-4 py-4">
-                        <div className="font-extrabold text-slate-900 text-sm">{loc.name}</div>
+                        <div className="font-extrabold text-slate-900 text-sm">{t(loc.name)}</div>
                         <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
                           <span className="font-mono text-teal-800 font-semibold">{loc.id}</span>
                           <span>•</span>
-                          <span>{loc.region || 'Forward Sector'}</span>
+                          <span>{t(loc.region) || 'Forward Sector'}</span>
                           <span>•</span>
                           <span className="font-medium text-slate-700">{loc.personnel || 100} Pax</span>
                         </div>
@@ -686,7 +686,7 @@ const DashboardPage = () => {
                           isWarning ? 'bg-amber-100 text-amber-800 border border-amber-300' :
                           'bg-emerald-100 text-emerald-800 border border-emerald-300'
                         }`}>
-                          {minDays.toFixed(1)} Days Left
+                          {minDays.toFixed(1)} {t('Days Remaining')}
                         </span>
                       </td>
 
@@ -697,14 +697,14 @@ const DashboardPage = () => {
                             onClick={() => navigate(`/weather-route?post=${loc.id}`)}
                             className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
                           >
-                            <Navigation size={12} /> Plan Route
+                            <Navigation size={12} /> {t('Plan Route')}
                           </button>
                           <button
                             onClick={() => openEditModal(loc)}
                             className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                            title="Edit Post Information"
+                            title={t('Edit Base')}
                           >
-                            <Edit3 size={12} /> Edit
+                            <Edit3 size={12} /> {t('Edit Base')}
                           </button>
                         </div>
                       </td>
@@ -787,12 +787,12 @@ const DashboardPage = () => {
           <div>
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 bg-emerald-100 text-emerald-900 text-[11px] font-extrabold rounded uppercase tracking-wide">
-                Supply Command Portal
+                {t('Supply Command Portal')}
               </span>
-              <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Forward Outposts Stock Availability &amp; Ration Priorities</h2>
+              <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">{t('Forward Outposts Stock Availability & Ration Priorities')}</h2>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Posts prioritized strictly by days of supply remaining. Select any post to enter and allot rations based on requirement.
+              {t('Posts prioritized strictly by days of supply remaining. Select any post to enter and allot rations based on requirement.')}
             </p>
           </div>
           
@@ -801,12 +801,12 @@ const DashboardPage = () => {
               onClick={() => navigate('/inventory')} 
               className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
             >
-              <Package size={14} /> Full Inventory
+              <Package size={14} /> {t('Full Inventory')}
             </button>
             <button 
               onClick={fetchDashboard} 
               className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
-              title="Refresh Data"
+              title={t('Refresh Data')}
             >
               <RefreshCw size={13} />
             </button>
@@ -820,10 +820,10 @@ const DashboardPage = () => {
               <AlertTriangle size={22} />
             </div>
             <div>
-              <div className="text-xs text-slate-500 font-bold">Critical Outposts (&le; 2 Days)</div>
-              <div className="text-2xl font-black text-red-600 mt-0.5">{criticalLocationsList.length} Posts</div>
+              <div className="text-xs text-slate-500 font-bold">{t('Critical Outposts (≤ 2 Days)')}</div>
+              <div className="text-2xl font-black text-red-600 mt-0.5">{criticalLocationsList.length} {t('Posts')}</div>
               <div className="text-[10px] text-red-600 font-semibold truncate max-w-[140px]">
-                {criticalLocationsList.length > 0 ? `${criticalLocationsList[0].name.split('(')[0].trim()} (Immediate Resupply)` : 'All Outposts Stable'}
+                {criticalLocationsList.length > 0 ? `${t(criticalLocationsList[0].name.split('(')[0].trim())} (${t('Immediate Resupply')})` : t('All Outposts Stable')}
               </div>
             </div>
           </div>
@@ -833,10 +833,10 @@ const DashboardPage = () => {
               <ShieldAlert size={22} />
             </div>
             <div>
-              <div className="text-xs text-slate-500 font-bold">High Shortage Risk (2–5 Days)</div>
-              <div className="text-2xl font-black text-amber-600 mt-0.5">{warningLocationsList.length} Posts</div>
+              <div className="text-xs text-slate-500 font-bold">{t('High Shortage Risk (2–5 Days)')}</div>
+              <div className="text-2xl font-black text-amber-600 mt-0.5">{warningLocationsList.length} {t('Posts')}</div>
               <div className="text-[10px] text-amber-700 font-semibold truncate max-w-[140px]">
-                {warningLocationsList.length > 0 ? warningLocationsList.map(l => l.name.split('(')[0].trim()).join(' & ') : 'None - Stock Sound'}
+                {warningLocationsList.length > 0 ? warningLocationsList.map(l => t(l.name.split('(')[0].trim())).join(' & ') : t('None - Stock Sound')}
               </div>
             </div>
           </div>
@@ -846,10 +846,10 @@ const DashboardPage = () => {
               <Activity size={22} />
             </div>
             <div>
-              <div className="text-xs text-slate-500 font-bold">Adequate Stock (&gt; 5 Days)</div>
-              <div className="text-2xl font-black text-emerald-600 mt-0.5">{normalLocationsList.length} Posts</div>
+              <div className="text-xs text-slate-500 font-bold">{t('Adequate Stock (> 5 Days)')}</div>
+              <div className="text-2xl font-black text-emerald-600 mt-0.5">{normalLocationsList.length} {t('Posts')}</div>
               <div className="text-[10px] text-emerald-700 font-semibold truncate max-w-[140px]">
-                {normalLocationsList.length > 0 ? normalLocationsList.map(l => l.name.split('(')[0].trim()).slice(0, 3).join(' & ') : 'None'}
+                {normalLocationsList.length > 0 ? normalLocationsList.map(l => t(l.name.split('(')[0].trim())).slice(0, 3).join(' & ') : t('None')}
               </div>
             </div>
           </div>
@@ -859,9 +859,9 @@ const DashboardPage = () => {
               <Package size={22} />
             </div>
             <div>
-              <div className="text-xs text-slate-500 font-bold">Total Monitored Outposts</div>
-              <div className="text-2xl font-black text-slate-900 mt-0.5">{forwardLocationsSorted.length} Posts</div>
-              <div className="text-[10px] text-emerald-700 font-semibold">All Sectors Monitored</div>
+              <div className="text-xs text-slate-500 font-bold">{t('Total Monitored Outposts')}</div>
+              <div className="text-2xl font-black text-slate-900 mt-0.5">{forwardLocationsSorted.length} {t('Posts')}</div>
+              <div className="text-[10px] text-emerald-700 font-semibold">{t('All Sectors Monitored')}</div>
             </div>
           </div>
         </div>
@@ -872,14 +872,14 @@ const DashboardPage = () => {
             <div>
               <h3 className="font-extrabold text-slate-900 text-sm sm:text-base flex items-center gap-2">
                 <List size={18} className="text-emerald-700" />
-                Forward Posts Stock Availability (Ranked by Criticality Priority)
+                {t('Forward Posts Stock Availability (Ranked by Criticality Priority)')}
               </h3>
               <p className="text-xs text-slate-500">
-                Sorted strictly by days remaining. Outposts facing stockout within 2 days appear at the top.
+                {t('Sorted strictly by days remaining. Outposts facing stockout within 2 days appear at the top.')}
               </p>
             </div>
             <span className="text-xs text-slate-500 font-mono bg-white px-2.5 py-1 rounded-md border border-slate-200">
-              Click 'Allot Rations' to enter allocations
+              {t("Click 'Allot Rations' to enter allocations")}
             </span>
           </div>
 
@@ -887,14 +887,14 @@ const DashboardPage = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 text-left text-xs uppercase tracking-wider font-semibold">
-                  <th className="px-4 py-3.5 text-center">Priority Rank</th>
-                  <th className="px-4 py-3.5">Forward Post &amp; Sector</th>
-                  <th className="px-3 py-3.5 text-center">Food Rations</th>
-                  <th className="px-3 py-3.5 text-center">Potable Water</th>
-                  <th className="px-3 py-3.5 text-center">Medical Units</th>
-                  <th className="px-3 py-3.5 text-center">Diesel Fuel</th>
-                  <th className="px-4 py-3.5 text-center">Critical Days</th>
-                  <th className="px-4 py-3.5 text-center">Actions</th>
+                  <th className="px-4 py-3.5 text-center">{t('Priority Rank')}</th>
+                  <th className="px-4 py-3.5">{t('Forward Post & Sector')}</th>
+                  <th className="px-3 py-3.5 text-center">{t('Food Rations')}</th>
+                  <th className="px-3 py-3.5 text-center">{t('Potable Water')}</th>
+                  <th className="px-3 py-3.5 text-center">{t('Medical Units')}</th>
+                  <th className="px-3 py-3.5 text-center">{t('Diesel Fuel')}</th>
+                  <th className="px-4 py-3.5 text-center">{t('Critical Days')}</th>
+                  <th className="px-4 py-3.5 text-center">{t('Actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -926,17 +926,17 @@ const DashboardPage = () => {
                           isWarning ? 'bg-amber-500 text-slate-900 font-bold' :
                           'bg-emerald-100 text-emerald-800'
                         }`}>
-                          #{index + 1} {isCritical ? 'CRITICAL' : isWarning ? 'HIGH RISK' : 'ADEQUATE'}
+                          #{index + 1} {isCritical ? t('CRITICAL') : isWarning ? t('HIGH RISK') : t('ADEQUATE')}
                         </span>
                       </td>
 
                       {/* Post Name & Troops */}
                       <td className="px-4 py-4">
-                        <div className="font-extrabold text-slate-900 text-sm">{loc.name}</div>
+                        <div className="font-extrabold text-slate-900 text-sm">{t(loc.name)}</div>
                         <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
                           <span className="font-mono text-emerald-800 font-semibold">{loc.id}</span>
                           <span>•</span>
-                          <span>{loc.region || 'Forward Sector'}</span>
+                          <span>{t(loc.region) || 'Forward Sector'}</span>
                           <span>•</span>
                           <span className="font-medium text-slate-700">{loc.personnel || 100} Pax</span>
                         </div>
@@ -973,7 +973,7 @@ const DashboardPage = () => {
                           isWarning ? 'bg-amber-100 text-amber-800 border border-amber-300' :
                           'bg-emerald-100 text-emerald-800 border border-emerald-300'
                         }`}>
-                          {minDays.toFixed(1)} Days Left
+                          {minDays.toFixed(1)} {t('Days Remaining')}
                         </span>
                       </td>
 
@@ -992,14 +992,14 @@ const DashboardPage = () => {
                                 : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                             }`}
                           >
-                            <Package size={12} /> {isSelectedForSupply ? '✓ Selected' : 'Allot Rations'}
+                            <Package size={12} /> {isSelectedForSupply ? '✓ ' + t('Selected') : t('Allot Rations')}
                           </button>
                           <button
                             onClick={() => openEditModal(loc)}
                             className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                            title="Edit Post Information"
+                            title={t('Edit Base')}
                           >
-                            <Edit3 size={12} /> Edit
+                            <Edit3 size={12} /> {t('Edit Base')}
                           </button>
                         </div>
                       </td>

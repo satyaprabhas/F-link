@@ -9,9 +9,10 @@ import {
 import { useAppContext } from '../context/AppContext';
 import ErrorBoundary from './ErrorBoundary';
 import EditProfileModal from './EditProfileModal';
+import LanguageToggle from './LanguageToggle';
 
 const Layout = () => {
-  const { user, logout, alertCount, connectivity, lastSync } = useAppContext();
+  const { user, logout, alertCount, connectivity, lastSync, language, t } = useAppContext();
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
@@ -226,7 +227,7 @@ const Layout = () => {
               />
               <div>
                 <span className="font-extrabold text-lg tracking-wider text-teal-800">F-LINK</span>
-                <span className="block text-[10px] text-teal-600 font-semibold tracking-tight uppercase leading-none">Resupply Assistant</span>
+                <span className="block text-[10px] text-teal-600 font-semibold tracking-tight uppercase leading-none">{t('Resupply Assistant')}</span>
               </div>
             </div>
           ) : (
@@ -248,17 +249,17 @@ const Layout = () => {
         {/* Role Identity Box in Sidebar */}
         {!collapsed && (
           <div className="px-3.5 py-2.5 bg-slate-50/80 border-b border-slate-200/80">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Current Role</div>
-            <div className="text-xs font-extrabold text-teal-950 truncate mt-0.5">{roleName}</div>
-            <div className="text-[11px] text-slate-500 font-medium truncate">{portal.desc}</div>
-            <div className="text-[10px] text-teal-700 font-mono mt-1 font-semibold">{portal.motto}</div>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('Current Role')}</div>
+            <div className="text-xs font-extrabold text-teal-950 truncate mt-0.5">{t(roleName)}</div>
+            <div className="text-[11px] text-slate-500 font-medium truncate">{t(portal.desc)}</div>
+            <div className="text-[10px] text-teal-700 font-mono mt-1 font-semibold">{t(portal.motto)}</div>
             <button
               onClick={() => setEditProfileOpen(true)}
               className="mt-2 w-full flex items-center justify-center space-x-1.5 py-1 px-2 rounded-md bg-teal-50 hover:bg-teal-100 border border-teal-200/80 text-[11px] font-semibold text-teal-800 transition-colors cursor-pointer"
-              title="Edit Full Name and Password"
+              title={t('Edit Name & Password')}
             >
               <Edit3 size={12} className="text-teal-700" />
-              <span>Edit Name &amp; Password</span>
+              <span>{t('Edit Name & Password')}</span>
             </button>
           </div>
         )}
@@ -269,7 +270,7 @@ const Layout = () => {
             <div key={idx}>
               {!collapsed && (
                 <div className="px-3 mb-1.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                  {group.title}
+                  {t(group.title)}
                 </div>
               )}
               <ul className="space-y-0.5">
@@ -284,10 +285,10 @@ const Layout = () => {
                             ? 'bg-teal-50 text-teal-800 font-semibold shadow-xs border border-teal-200/60' 
                             : 'text-slate-600 hover:bg-slate-50 hover:text-teal-800'
                         }`}
-                        title={collapsed ? item.name : ''}
+                        title={collapsed ? t(item.name) : ''}
                       >
                         <item.icon size={18} className={`${collapsed ? 'mx-auto' : 'mr-3'} ${isActive ? 'text-teal-700' : 'text-slate-400'}`} />
-                        {!collapsed && <span className="flex-1 truncate">{item.name}</span>}
+                        {!collapsed && <span className="flex-1 truncate">{t(item.name)}</span>}
                         {!collapsed && item.badge > 0 && (
                           <span className="bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-xs">
                             {item.badge}
@@ -306,7 +307,7 @@ const Layout = () => {
         {!collapsed && (
           <div className="p-3 border-t border-slate-200 bg-slate-50/70 text-xs text-slate-500 flex items-center justify-between">
             <span className="font-medium text-slate-600">F-LINK v2.5</span>
-            <span className="text-[10px] px-1.5 py-0.5 bg-teal-100 text-teal-800 rounded font-semibold">Active</span>
+            <span className="text-[10px] px-1.5 py-0.5 bg-teal-100 text-teal-800 rounded font-semibold">{t('Active')}</span>
           </div>
         )}
       </aside>
@@ -327,30 +328,33 @@ const Layout = () => {
               </span>
             </div>
             <span className={`px-2.5 py-1 rounded text-xs font-bold border ${portal.theme}`}>
-              {portal.badge}
+              {t(portal.badge)}
             </span>
             <span className="text-xs font-medium text-slate-500 hidden lg:inline">
-              • Final decisions require human officer sign-off
+              {t('• Final decisions require human officer sign-off')}
             </span>
           </div>
           
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 sm:space-x-4">
+            {/* Language Toggle (English <-> Hindi) */}
+            <LanguageToggle />
+
             {/* Live Time */}
             <div className="text-xs font-medium text-slate-500 hidden xl:block bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200 font-mono">
               {currentTime.toLocaleTimeString()}
             </div>
             
             {/* Connectivity Status */}
-            <div className="flex items-center space-x-2 text-xs bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200">
+            <div className="flex items-center space-x-2 text-xs bg-slate-50 px-2.5 sm:px-3 py-1.5 rounded-md border border-slate-200">
               <span className={`w-2.5 h-2.5 rounded-full ${getStatusColor(connectivity)}`}></span>
-              <span className="font-semibold text-slate-700">{connectivity}</span>
+              <span className="font-semibold text-slate-700">{t(connectivity)}</span>
             </div>
             
             {/* Alert Bell */}
             <div 
               onClick={() => navigate('/alerts')} 
               className="relative p-2 rounded-md hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer transition-colors"
-              title="View Alerts"
+              title={t('View Alerts')}
             >
               <Bell size={19} />
               {alertCount > 0 && (
@@ -361,23 +365,23 @@ const Layout = () => {
             </div>
             
             {/* User Profile */}
-            <div className="flex items-center space-x-2.5 border-l border-slate-200 pl-4">
+            <div className="flex items-center space-x-2 sm:space-x-2.5 border-l border-slate-200 pl-3 sm:pl-4">
               <div className="text-right hidden sm:block">
                 <div className="text-sm font-semibold text-slate-900 leading-tight">{user?.full_name || user?.username || 'User'}</div>
-                <div className="text-[11px] font-semibold text-teal-700 uppercase tracking-wider">{user?.role}</div>
+                <div className="text-[11px] font-semibold text-teal-700 uppercase tracking-wider">{t(user?.role)}</div>
               </div>
               <button
                 onClick={() => setEditProfileOpen(true)}
                 className="p-2 text-slate-500 hover:text-teal-800 hover:bg-teal-50 rounded-md transition-colors cursor-pointer border border-slate-200 hover:border-teal-300 flex items-center gap-1 text-xs font-medium"
-                title="Edit Name & Password"
+                title={t('Edit Profile')}
               >
                 <Edit3 size={15} />
-                <span className="hidden md:inline">Edit Profile</span>
+                <span className="hidden md:inline">{t('Edit Profile')}</span>
               </button>
               <button 
                 onClick={handleLogout} 
                 className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
-                title="Log Out"
+                title={t('Log Out')}
               >
                 <LogOut size={18} />
               </button>

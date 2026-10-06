@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAppContext } from '../context/AppContext';
+import LanguageToggle from '../components/LanguageToggle';
 import { 
   Lock, User, Eye, EyeOff, Package, Truck, ShieldAlert, Settings, Info, Check
 } from 'lucide-react';
@@ -14,7 +15,7 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { login: contextLogin } = useAppContext();
+  const { login: contextLogin, t } = useAppContext();
 
   const roleCredentials = {
     'Logistics Officer': { u: 'logistics', p: 'demo123', label: 'Logistics Officer' },
@@ -88,6 +89,11 @@ const LoginPage = () => {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 lg:p-8 xl:p-12 bg-white overflow-y-auto">
         <div className="w-full max-w-sm sm:max-w-md space-y-3.5 sm:space-y-4">
           
+          {/* Top Language Toggle Switcher */}
+          <div className="flex justify-end">
+            <LanguageToggle />
+          </div>
+
           {/* Header */}
           <div className="text-center flex flex-col items-center">
             <img 
@@ -99,13 +105,13 @@ const LoginPage = () => {
               F-LINK
             </h1>
             <p className="text-teal-700 font-bold text-[11px] sm:text-xs uppercase tracking-widest mt-0.5">
-              Forward Logistics Intelligence &amp; Network
+              {t('Forward Logistics Intelligence & Network')}
             </p>
             <h2 className="text-base sm:text-lg font-bold text-slate-800 mt-2">
-              Welcome
+              {t('Welcome')}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5 font-medium">
-              Smart supply prediction &amp; resupply decision assistant for forward locations.
+              {t('Smart supply prediction & resupply decision assistant for forward locations.')}
             </p>
           </div>
 
@@ -118,7 +124,7 @@ const LoginPage = () => {
           {/* Select Your Role (Clean Interactive Cards) */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-2 tracking-wide">
-              Select Your Role
+              {t('Select Your Role')}
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               
@@ -138,8 +144,8 @@ const LoginPage = () => {
                   </span>
                 )}
                 <ShieldAlert size={18} className={selectedRole === 'Logistics Officer' ? 'text-teal-700' : 'text-slate-500'} />
-                <span className="text-[11px] font-bold mt-1 leading-tight">Logistics</span>
-                <span className="text-[9px] text-slate-500 font-medium">Officer</span>
+                <span className="text-[11px] font-bold mt-1 leading-tight">{t('Logistics')}</span>
+                <span className="text-[9px] text-slate-500 font-medium">{t('Officer')}</span>
               </button>
 
               {/* 2. Supply Officer */}
@@ -158,8 +164,8 @@ const LoginPage = () => {
                   </span>
                 )}
                 <Package size={18} className={selectedRole === 'Supply / Inventory Officer' ? 'text-emerald-700' : 'text-slate-500'} />
-                <span className="text-[11px] font-bold mt-1 leading-tight">Supply</span>
-                <span className="text-[9px] text-slate-500 font-medium">Officer</span>
+                <span className="text-[11px] font-bold mt-1 leading-tight">{t('Supply')}</span>
+                <span className="text-[9px] text-slate-500 font-medium">{t('Officer')}</span>
               </button>
 
               {/* 3. Transport Coordinator */}
@@ -178,8 +184,8 @@ const LoginPage = () => {
                   </span>
                 )}
                 <Truck size={18} className={selectedRole === 'Transport Coordinator' ? 'text-sky-700' : 'text-slate-500'} />
-                <span className="text-[11px] font-bold mt-1 leading-tight">Transport</span>
-                <span className="text-[9px] text-slate-500 font-medium">Coordinator</span>
+                <span className="text-[11px] font-bold mt-1 leading-tight">{t('Transport')}</span>
+                <span className="text-[9px] text-slate-500 font-medium">{t('Coordinator')}</span>
               </button>
 
               {/* 4. Administrator */}
@@ -198,8 +204,8 @@ const LoginPage = () => {
                   </span>
                 )}
                 <Settings size={18} className={selectedRole === 'Administrator' ? 'text-slate-800' : 'text-slate-500'} />
-                <span className="text-[11px] font-bold mt-1 leading-tight">Admin</span>
-                <span className="text-[9px] text-slate-500 font-medium">System</span>
+                <span className="text-[11px] font-bold mt-1 leading-tight">{t('Admin')}</span>
+                <span className="text-[9px] text-slate-500 font-medium">{t('System')}</span>
               </button>
 
             </div>
@@ -208,7 +214,7 @@ const LoginPage = () => {
           {/* Credentials Form */}
           <form onSubmit={handleManualLogin} className="space-y-3 pt-1">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Username</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Username')}</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                   <User size={15} />
@@ -218,13 +224,13 @@ const LoginPage = () => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:border-teal-700 text-xs font-medium transition-colors"
-                  placeholder="Enter username"
+                  placeholder={t('Enter username')}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Password')}</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                   <Lock size={15} />
@@ -234,7 +240,7 @@ const LoginPage = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-9 pr-10 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:border-teal-700 text-xs font-medium transition-colors"
-                  placeholder="Enter password"
+                  placeholder={t('Enter password')}
                 />
                 <button
                   type="button"
@@ -252,7 +258,7 @@ const LoginPage = () => {
               disabled={loading}
               className="w-full mt-2 bg-teal-700 hover:bg-teal-800 text-white font-bold py-2.5 px-4 rounded-xl transition-all flex items-center justify-center text-xs tracking-wide shadow-sm cursor-pointer disabled:opacity-50"
             >
-              {loading ? 'Authenticating...' : 'Login to Dashboard'}
+              {loading ? t('Authenticating...') : t('Login to Dashboard')}
             </button>
           </form>
 
@@ -260,7 +266,7 @@ const LoginPage = () => {
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs mt-3">
             <div className="flex items-center gap-1.5 font-bold text-slate-700 text-[11px] mb-2">
               <Info size={14} className="text-teal-700" />
-              <span>Quick Demo Login:</span>
+              <span>{t('Quick Demo Login:')}</span>
             </div>
             <div className="grid grid-cols-2 gap-1.5 font-mono text-[11px]">
               <button
@@ -268,7 +274,7 @@ const LoginPage = () => {
                 onClick={() => handleRoleQuickLogin('logistics', 'demo123', 'Logistics Officer')}
                 className="p-1.5 bg-white border border-slate-200 hover:border-teal-500 hover:bg-teal-50 rounded-lg text-left transition-colors flex justify-between items-center px-2 cursor-pointer shadow-2xs"
               >
-                <span className="font-semibold text-slate-800">Logistics</span>
+                <span className="font-semibold text-slate-800">{t('Logistics')}</span>
                 <span className="text-[10px] text-slate-400">demo123</span>
               </button>
               <button
@@ -276,7 +282,7 @@ const LoginPage = () => {
                 onClick={() => handleRoleQuickLogin('supply', 'demo123', 'Supply / Inventory Officer')}
                 className="p-1.5 bg-white border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 rounded-lg text-left transition-colors flex justify-between items-center px-2 cursor-pointer shadow-2xs"
               >
-                <span className="font-semibold text-slate-800">Supply</span>
+                <span className="font-semibold text-slate-800">{t('Supply')}</span>
                 <span className="text-[10px] text-slate-400">demo123</span>
               </button>
               <button
@@ -284,7 +290,7 @@ const LoginPage = () => {
                 onClick={() => handleRoleQuickLogin('transport', 'demo123', 'Transport Coordinator')}
                 className="p-1.5 bg-white border border-slate-200 hover:border-sky-500 hover:bg-sky-50 rounded-lg text-left transition-colors flex justify-between items-center px-2 cursor-pointer shadow-2xs"
               >
-                <span className="font-semibold text-slate-800">Transport</span>
+                <span className="font-semibold text-slate-800">{t('Transport')}</span>
                 <span className="text-[10px] text-slate-400">demo123</span>
               </button>
               <button
@@ -292,7 +298,7 @@ const LoginPage = () => {
                 onClick={() => handleRoleQuickLogin('admin', 'admin123', 'Administrator')}
                 className="p-1.5 bg-white border border-slate-200 hover:border-slate-500 hover:bg-slate-100 rounded-lg text-left transition-colors flex justify-between items-center px-2 cursor-pointer shadow-2xs"
               >
-                <span className="font-semibold text-slate-800">Admin</span>
+                <span className="font-semibold text-slate-800">{t('Admin')}</span>
                 <span className="text-[10px] text-slate-400">admin123</span>
               </button>
             </div>
@@ -300,7 +306,7 @@ const LoginPage = () => {
 
           {/* Footer note */}
           <p className="text-center text-[10px] text-slate-400 pt-1">
-            F-LINK Tactical Logistics Core v2.5 • Decision Support System
+            {t('F-LINK Tactical Logistics Core v2.5 • Decision Support System')}
           </p>
 
         </div>

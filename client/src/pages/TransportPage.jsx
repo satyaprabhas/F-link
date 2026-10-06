@@ -7,7 +7,7 @@ import {
 import { useAppContext } from '../context/AppContext';
 
 export default function TransportPage() {
-  const { user, refreshData } = useAppContext() || {};
+  const { user, refreshData, t, language } = useAppContext() || {};
   const isTransportCoordinator = user?.role === 'Transport Coordinator';
   // Transport Coordinator cannot create new arbitrary entries as per exact specifications
   const canCreateDelivery = user?.role === 'Administrator' || user?.role === 'Logistics Officer';
@@ -239,21 +239,21 @@ export default function TransportPage() {
 
   return (
     <div className="space-y-8">
-      {error && <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs">{error}</div>}
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs">{t(error)}</div>}
 
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <Truck className="text-teal-700" size={22} />
-            Transport Fleet &amp; Convoy Scheduling
+            {t('Transport Fleet & Convoy Scheduling')}
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">Fleet asset readiness, convoy dispatch &amp; delivery completion</p>
+          <p className="text-xs text-slate-500 mt-0.5">{t('Fleet asset readiness, convoy dispatch & delivery completion')}</p>
         </div>
 
         <button 
           onClick={fetchData} 
           className="p-2 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
-          title="Refresh Data"
+          title={t('Refresh Data')}
         >
           <RefreshCw size={15} />
         </button>
@@ -262,7 +262,7 @@ export default function TransportPage() {
       {/* FLEET SECTION */}
       <section className="space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Fleet Vehicle Readiness</h2>
+          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">{t('Fleet Vehicle Readiness')}</h2>
           <div className="flex flex-wrap gap-1.5">
             {['All', 'Available', 'Assigned', 'En Route', 'Maintenance'].map(s => (
               <button
@@ -274,7 +274,7 @@ export default function TransportPage() {
                     : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
-                {s} {s !== 'All' && `(${statusCounts[s] || 0})`}
+                {t(s)} {s !== 'All' && `(${statusCounts[s] || 0})`}
               </button>
             ))}
           </div>
@@ -284,9 +284,9 @@ export default function TransportPage() {
           {filteredVehicles.map(v => (
             <div key={v.id} className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm hover:shadow-md hover:border-teal-500 transition-all">
               <div className="flex justify-between items-start mb-1">
-                <span className="font-bold text-slate-900 text-sm truncate">{v.name}</span>
+                <span className="font-bold text-slate-900 text-sm truncate">{t(v.name)}</span>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border uppercase tracking-wider ${getStatusColor(v.status)}`}>
-                  {v.status}
+                  {t(v.status)}
                 </span>
               </div>
               <div className="text-xs text-slate-500 font-medium mb-3">{v.type} • <span className="font-mono text-teal-800 font-semibold">{v.id}</span></div>

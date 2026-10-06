@@ -49,7 +49,7 @@ export const getCorridorName = (postId, routeId) => {
 };
 
 export default function WeatherRoutePage() {
-  const { refreshData, login } = useAppContext() || {};
+  const { refreshData, login, t, language } = useAppContext() || {};
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -209,22 +209,22 @@ export default function WeatherRoutePage() {
         <div>
           <div className="flex items-center gap-2">
             <span className="px-2 py-0.5 bg-teal-100 text-teal-900 text-[11px] font-extrabold rounded uppercase tracking-wide">
-              Logistics Portal
+              {t('Logistics Command Portal')}
             </span>
             <h1 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
               <RouteIcon className="text-teal-700" size={22} />
-              Forward Post Corridor &amp; Weather Planning
+              {t('Forward Post Corridor & Weather Planning')}
             </h1>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Select forward post to inspect specific corridors, weather hazards, and pre-pone departure to beat storm blockages
+            {t('Select forward post to inspect specific corridors, weather hazards, and pre-pone departure to beat storm blockages')}
           </p>
         </div>
 
         <button 
           onClick={loadLocations} 
           className="p-2 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
-          title="Refresh Data"
+          title={t('Refresh Data')}
         >
           <RefreshCw size={15} />
         </button>
@@ -236,11 +236,11 @@ export default function WeatherRoutePage() {
           <div className="flex items-center gap-2">
             <MapPin size={17} className="text-teal-700" />
             <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Select Forward Post (Map &amp; Routes Dynamically Adjust):
+              {t('Select Forward Post (Map & Routes Dynamically Adjust):')}
             </span>
           </div>
           <span className="text-[11px] text-slate-400 font-medium">
-            Posts sorted by supply criticality
+            {t('Posts sorted by supply criticality')}
           </span>
         </div>
 

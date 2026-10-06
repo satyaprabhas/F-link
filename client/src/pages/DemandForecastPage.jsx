@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, Minus, Activity, MapPin, AlertTriangle, RefreshCw } from 'lucide-react';
+import { useAppContext } from '../context/AppContext';
 
 const DemandForecastPage = () => {
+  const { t } = useAppContext() || { t: k => k };
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState('');
   
@@ -54,9 +56,9 @@ const DemandForecastPage = () => {
   };
 
   const getTrendIcon = (trend) => {
-    if (trend === 'up' || trend === 'increasing') return <span className="inline-flex items-center text-amber-600 font-semibold gap-0.5"><TrendingUp size={15} /> Inc</span>;
-    if (trend === 'down' || trend === 'decreasing') return <span className="inline-flex items-center text-emerald-600 font-semibold gap-0.5"><TrendingDown size={15} /> Dec</span>;
-    return <span className="inline-flex items-center text-slate-400 font-medium gap-0.5"><Minus size={15} /> Stable</span>;
+    if (trend === 'up' || trend === 'increasing') return <span className="inline-flex items-center text-amber-600 font-semibold gap-0.5"><TrendingUp size={15} /> {t('Inc')}</span>;
+    if (trend === 'down' || trend === 'decreasing') return <span className="inline-flex items-center text-emerald-600 font-semibold gap-0.5"><TrendingDown size={15} /> {t('Dec')}</span>;
+    return <span className="inline-flex items-center text-slate-400 font-medium gap-0.5"><Minus size={15} /> {t('Stable')}</span>;
   };
 
   const getConfidenceBadge = (confidence) => {
@@ -68,7 +70,7 @@ const DemandForecastPage = () => {
     
     return (
       <span className={`px-2 py-0.5 rounded text-xs font-bold border ${colorClass}`}>
-        {typeof confidence === 'string' ? confidence : `${Math.round(confNum * 100)}%`}
+        {typeof confidence === 'string' ? t(confidence) : `${Math.round(confNum * 100)}%`}
       </span>
     );
   };
@@ -86,11 +88,11 @@ const DemandForecastPage = () => {
     });
 
     return [
-      { name: 'Current', demand: Math.round(aggregates['Current']) },
-      { name: '1 Day', demand: Math.round(aggregates['Day 1']) },
-      { name: '3 Days', demand: Math.round(aggregates['Day 3']) },
-      { name: '7 Days', demand: Math.round(aggregates['Day 7']) },
-      { name: '14 Days', demand: Math.round(aggregates['Day 14']) }
+      { name: t('Current'), demand: Math.round(aggregates['Current']) },
+      { name: t('1-Day'), demand: Math.round(aggregates['Day 1']) },
+      { name: t('3-Day'), demand: Math.round(aggregates['Day 3']) },
+      { name: t('7-Day'), demand: Math.round(aggregates['Day 7']) },
+      { name: t('14-Day'), demand: Math.round(aggregates['Day 14']) }
     ];
   };
 
@@ -102,32 +104,32 @@ const DemandForecastPage = () => {
         <div>
           <h1 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <Activity className="text-teal-700" size={22} />
-            Supply &amp; Demand Forecasting
+            {t('Supply & Demand Forecasting')}
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">Multi-horizon consumption modeling (1d, 3d, 7d, 14d) &amp; supply exhaustion predictions</p>
+          <p className="text-xs text-slate-500 mt-0.5">{t('Multi-horizon consumption modeling (1d, 3d, 7d, 14d) & supply exhaustion predictions')}</p>
         </div>
         
         <div className="flex items-center gap-2 bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-2xs">
           <MapPin size={16} className="text-teal-700" />
-          <span className="text-xs font-semibold text-slate-500">Location:</span>
+          <span className="text-xs font-semibold text-slate-500">{t('Location:')}</span>
           <select 
             value={selectedLocation} 
             onChange={(e) => setSelectedLocation(e.target.value)}
             className="bg-transparent border-none text-slate-900 font-semibold text-xs focus:ring-0 outline-none cursor-pointer"
           >
-            <optgroup label="── Forward Posts (Outposts) ──">
+            <optgroup label={t('── Forward Posts (Outposts) ──')}>
               {locations.filter(l => l.type === 'forward_location').map(loc => (
-                <option key={loc.id} value={loc.id} className="bg-white">{loc.name} ({loc.region || 'Forward Sector'})</option>
+                <option key={loc.id} value={loc.id} className="bg-white">{t(loc.name)} ({t(loc.region || 'Forward Sector')})</option>
               ))}
             </optgroup>
-            <optgroup label="── Main Supply Depots ──">
+            <optgroup label={t('── Main Supply Depots ──')}>
               {locations.filter(l => l.type === 'depot').map(loc => (
-                <option key={loc.id} value={loc.id} className="bg-white">{loc.name} (Strategic Reserve)</option>
+                <option key={loc.id} value={loc.id} className="bg-white">{t(loc.name)} ({t('Strategic Reserve')})</option>
               ))}
             </optgroup>
-            <optgroup label="── Forward Supply Staging Points ──">
+            <optgroup label={t('── Forward Supply Staging Points ──')}>
               {locations.filter(l => l.type === 'supply_point').map(loc => (
-                <option key={loc.id} value={loc.id} className="bg-white">{loc.name} (Transit Staging)</option>
+                <option key={loc.id} value={loc.id} className="bg-white">{t(loc.name)} ({t('Transit Staging')})</option>
               ))}
             </optgroup>
           </select>
@@ -143,39 +145,39 @@ const DemandForecastPage = () => {
               selectedLocationObj.type === 'depot' ? 'bg-sky-100 text-sky-900 border border-sky-300' :
               'bg-teal-100 text-teal-900 border border-teal-300'
             }`}>
-              {selectedLocationObj.type === 'forward_location' ? 'Forward Post' : selectedLocationObj.type === 'depot' ? 'Supply Depot' : 'Supply Staging'}
+              {t(selectedLocationObj.type === 'forward_location' ? 'Forward Post' : selectedLocationObj.type === 'depot' ? 'Supply Depot' : 'Supply Staging')}
             </span>
-            <span className="font-extrabold text-slate-900 text-sm">{selectedLocationObj.name}</span>
+            <span className="font-extrabold text-slate-900 text-sm">{t(selectedLocationObj.name)}</span>
             <span className="text-slate-400">•</span>
-            <span className="text-slate-600 font-medium">Sector: <strong>{selectedLocationObj.region || 'Forward Sector'}</strong></span>
+            <span className="text-slate-600 font-medium">{t('Sector:')} <strong>{t(selectedLocationObj.region || 'Forward Sector')}</strong></span>
             {selectedLocationObj.personnel && (
               <>
                 <span className="text-slate-400">•</span>
-                <span className="text-slate-600 font-medium">Troop Count: <strong>{selectedLocationObj.personnel} Pax</strong></span>
+                <span className="text-slate-600 font-medium">{t('Troop Count:')} <strong>{selectedLocationObj.personnel} {t('Pax')}</strong></span>
               </>
             )}
           </div>
-          <span className="text-slate-500 font-mono text-[11px]">Node ID: {selectedLocationObj.id}</span>
+          <span className="text-slate-500 font-mono text-[11px]">{t('Node ID:')} {selectedLocationObj.id}</span>
         </div>
       )}
 
       {loading ? (
         <div className="p-16 text-center text-slate-500 border border-slate-200 rounded-xl bg-white flex items-center justify-center gap-2 shadow-sm">
-          <RefreshCw className="animate-spin text-teal-700" size={18} /> Calculating predictive models...
+          <RefreshCw className="animate-spin text-teal-700" size={18} /> {t('Calculating predictive models...')}
         </div>
       ) : error ? (
-        <div className="p-8 text-center text-red-700 border border-red-200 rounded-xl bg-red-50 text-sm font-medium">{error}</div>
+        <div className="p-8 text-center text-red-700 border border-red-200 rounded-xl bg-red-50 text-sm font-medium">{t(error)}</div>
       ) : (
         <>
           {/* Chart Section */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
             <div className="flex justify-between items-center mb-4">
               <div>
-                <h2 className="text-sm font-bold text-slate-900">Aggregate Demand Trajectory</h2>
-                <p className="text-xs text-slate-500">Total forward consumption projected over the next 14 days</p>
+                <h2 className="text-sm font-bold text-slate-900">{t('Aggregate Demand Trajectory')}</h2>
+                <p className="text-xs text-slate-500">{t('Total forward consumption projected over the next 14 days')}</p>
               </div>
               <span className="text-xs font-semibold px-2.5 py-1 bg-teal-50 text-teal-800 border border-teal-200 rounded-md">
-                14-Day Planning Horizon
+                {t('14-Day Planning Horizon')}
               </span>
             </div>
             
@@ -212,27 +214,27 @@ const DemandForecastPage = () => {
           {/* Forecast Table */}
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
             <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-              <h2 className="text-sm font-bold text-slate-900">Per-Item Multi-Period Forecast</h2>
-              <span className="text-xs text-slate-500">Includes weather adjustment &amp; operational activity factor</span>
+              <h2 className="text-sm font-bold text-slate-900">{t('Per-Item Multi-Period Forecast')}</h2>
+              <span className="text-xs text-slate-500">{t('Includes weather adjustment & operational activity factor')}</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/50 text-slate-500 text-xs uppercase tracking-wider font-semibold">
-                    <th className="py-3 px-4">Item</th>
-                    <th className="py-3 px-3 text-right">Daily Baseline</th>
-                    <th className="py-3 px-3 text-right">1-Day</th>
-                    <th className="py-3 px-3 text-right">3-Day</th>
-                    <th className="py-3 px-3 text-right">7-Day</th>
-                    <th className="py-3 px-3 text-right">14-Day</th>
-                    <th className="py-3 px-3 text-center">Trend</th>
-                    <th className="py-3 px-4 text-center">Confidence</th>
+                    <th className="py-3 px-4">{t('Item')}</th>
+                    <th className="py-3 px-3 text-right">{t('Daily Baseline')}</th>
+                    <th className="py-3 px-3 text-right">{t('1-Day')}</th>
+                    <th className="py-3 px-3 text-right">{t('3-Day')}</th>
+                    <th className="py-3 px-3 text-right">{t('7-Day')}</th>
+                    <th className="py-3 px-3 text-right">{t('14-Day')}</th>
+                    <th className="py-3 px-3 text-center">{t('Trend')}</th>
+                    <th className="py-3 px-4 text-center">{t('Confidence')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {forecastData?.forecasts?.map((item, idx) => (
                     <tr key={idx} className="hover:bg-teal-50/25 transition-colors">
-                      <td className="py-3 px-4 font-bold text-slate-900">{item.item}</td>
+                      <td className="py-3 px-4 font-bold text-slate-900">{t(item.item)}</td>
                       <td className="py-3 px-3 text-right font-mono text-slate-600">{Number(item.current_daily || 0).toFixed(0)}</td>
                       <td className="py-3 px-3 text-right font-mono text-slate-800">{Number(item.forecast_1d || 0).toFixed(0)}</td>
                       <td className="py-3 px-3 text-right font-mono text-slate-800">{Number(item.forecast_3d || 0).toFixed(0)}</td>
@@ -248,7 +250,7 @@ const DemandForecastPage = () => {
                   ))}
                   {(!forecastData || !forecastData.forecasts || forecastData.forecasts.length === 0) && (
                     <tr>
-                      <td colSpan="8" className="p-6 text-center text-slate-400">No forecast data available for this location.</td>
+                      <td colSpan="8" className="p-6 text-center text-slate-400">{t('No forecast data available for this location.')}</td>
                     </tr>
                   )}
                 </tbody>
@@ -261,24 +263,24 @@ const DemandForecastPage = () => {
             <div className="p-4 border-b border-slate-200 bg-red-50/50 flex justify-between items-center">
               <div className="flex items-center gap-2 text-red-800 font-bold text-sm">
                 <AlertTriangle className="text-red-600" size={17} />
-                <span>Stockout Early Warning Predictions</span>
+                <span>{t('Stockout Early Warning Predictions')}</span>
               </div>
               <span className="text-xs bg-white border border-red-200 text-red-700 px-2 py-0.5 rounded font-bold">
-                Automated Risk Detection
+                {t('Automated Risk Detection')}
               </span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-semibold">
-                    <th className="py-3 px-4">Item</th>
-                    <th className="py-3 px-3 text-right">Days Until Shortage</th>
-                    <th className="py-3 px-3">Est. Date</th>
-                    <th className="py-3 px-3 text-right">Supply Gap</th>
-                    <th className="py-3 px-3 text-center">Risk Level</th>
-                    <th className="py-3 px-3 text-right">Incoming Supply</th>
-                    <th className="py-3 px-3 text-center">Arrive In Time?</th>
-                    <th className="py-3 px-4">Prediction Reason</th>
+                    <th className="py-3 px-4">{t('Item')}</th>
+                    <th className="py-3 px-3 text-right">{t('Days Until Shortage')}</th>
+                    <th className="py-3 px-3">{t('Est. Date')}</th>
+                    <th className="py-3 px-3 text-right">{t('Supply Gap')}</th>
+                    <th className="py-3 px-3 text-center">{t('Risk Level')}</th>
+                    <th className="py-3 px-3 text-right">{t('Incoming Supply')}</th>
+                    <th className="py-3 px-3 text-center">{t('Arrive In Time?')}</th>
+                    <th className="py-3 px-4">{t('Prediction Reason')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -294,34 +296,34 @@ const DemandForecastPage = () => {
 
                     return (
                       <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="py-3 px-4 font-bold text-slate-900">{pred.item}</td>
+                        <td className="py-3 px-4 font-bold text-slate-900">{t(pred.item)}</td>
                         <td className={`py-3 px-3 text-right font-mono text-sm ${daysColor}`}>
-                          {pred.days_until_stockout} days
+                          {pred.days_until_stockout} {t('days')}
                         </td>
                         <td className="py-3 px-3 text-xs text-slate-600 font-mono">{pred.stockout_date ? new Date(pred.stockout_date).toLocaleDateString() : '-'}</td>
                         <td className="py-3 px-3 text-right font-mono text-red-600 font-semibold">{pred.supply_gap > 0 ? `-${pred.supply_gap.toLocaleString()}` : '0'}</td>
                         <td className="py-3 px-3 text-center">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${riskBadge}`}>
-                            {pred.risk_level}
+                            {t(pred.risk_level)}
                           </span>
                         </td>
                         <td className="py-3 px-3 text-right font-mono text-teal-800 font-medium">{pred.incoming_quantity > 0 ? `+${pred.incoming_quantity.toLocaleString()}` : '-'}</td>
                         <td className="py-3 px-3 text-center">
                           {pred.incoming_quantity > 0 ? (
                             pred.will_arrive_in_time 
-                              ? <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded text-xs border border-emerald-200">Yes</span>
-                              : <span className="text-red-700 font-bold bg-red-50 px-2 py-0.5 rounded text-xs border border-red-200">No (Delayed)</span>
+                              ? <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded text-xs border border-emerald-200">{t('Yes')}</span>
+                              : <span className="text-red-700 font-bold bg-red-50 px-2 py-0.5 rounded text-xs border border-red-200">{t('No (Delayed)')}</span>
                           ) : (
-                            <span className="text-slate-400 text-xs">No Deliveries</span>
+                            <span className="text-slate-400 text-xs">{t('No Deliveries')}</span>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-xs text-slate-600 max-w-xs leading-relaxed">{pred.reason}</td>
+                        <td className="py-3 px-4 text-xs text-slate-600 max-w-xs leading-relaxed">{t(pred.reason)}</td>
                       </tr>
                     );
                   })}
                   {(!stockoutData || stockoutData.predictions.length === 0) && (
                     <tr>
-                      <td colSpan="8" className="p-6 text-center text-emerald-700 font-medium">No immediate supply shortages detected.</td>
+                      <td colSpan="8" className="p-6 text-center text-emerald-700 font-medium">{t('No immediate supply shortages detected.')}</td>
                     </tr>
                   )}
                 </tbody>

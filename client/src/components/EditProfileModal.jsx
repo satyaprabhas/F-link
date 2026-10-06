@@ -4,7 +4,7 @@ import { api } from '../services/api';
 import { useAppContext } from '../context/AppContext';
 
 export default function EditProfileModal({ isOpen, onClose }) {
-  const { user, updateUser } = useAppContext() || {};
+  const { user, updateUser, t } = useAppContext() || {};
   
   const [fullName, setFullName] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -96,17 +96,17 @@ export default function EditProfileModal({ isOpen, onClose }) {
             />
             <div>
               <h3 className="font-extrabold text-base text-slate-900 leading-tight">
-                Edit Profile &amp; Password
+                {t('Edit Profile & Password')}
               </h3>
               <p className="text-[11px] text-slate-500">
-                Update officer name and access password
+                {t('Update officer name and access password')}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
-            title="Close"
+            title={t('Close')}
           >
             <X size={18} />
           </button>
@@ -117,25 +117,25 @@ export default function EditProfileModal({ isOpen, onClose }) {
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-xl text-xs flex items-center gap-2">
               <AlertCircle size={16} className="text-red-600 flex-shrink-0" />
-              <span>{error}</span>
+              <span>{t(error)}</span>
             </div>
           )}
 
           {successMsg && (
             <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs flex items-center gap-2">
               <Check size={16} className="text-emerald-600 flex-shrink-0" />
-              <span>{successMsg}</span>
+              <span>{t(successMsg)}</span>
             </div>
           )}
 
           {/* Current Role & Username */}
           <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Logged In Account</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">{t('Logged In Account')}</span>
               <span className="font-mono font-bold text-slate-800 text-xs">{user?.username || 'officer'}</span>
             </div>
             <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${getRoleBadge(user?.role)}`}>
-              {user?.role || 'Officer'}
+              {t(user?.role) || t('Officer')}
             </span>
           </div>
 
@@ -143,7 +143,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
               <User size={14} className="text-teal-700" />
-              Officer Full Name
+              {t('Officer Full Name')}
             </label>
             <input
               type="text"
@@ -160,23 +160,23 @@ export default function EditProfileModal({ isOpen, onClose }) {
             <div className="flex justify-between items-center mb-1">
               <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                 <Lock size={14} className="text-teal-700" />
-                New Password
+                {t('New Password')}
               </label>
-              <span className="text-[10px] text-slate-400 font-medium">Leave blank to keep current</span>
+              <span className="text-[10px] text-slate-400 font-medium">{t('Leave blank to keep current')}</span>
             </div>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password (optional)"
+                placeholder={t('Enter new password (optional)')}
                 className="w-full bg-white border border-slate-300 rounded-xl p-2.5 pr-10 text-xs text-slate-900 font-mono focus:ring-2 focus:ring-teal-700 focus:outline-hidden"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
-                title={showPassword ? 'Hide password' : 'Show password'}
+                title={showPassword ? t('Hide password') : t('Show password')}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -188,13 +188,13 @@ export default function EditProfileModal({ isOpen, onClose }) {
             <div className="animate-in fade-in duration-150">
               <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
                 <KeyRound size={14} className="text-teal-700" />
-                Confirm New Password
+                {t('Confirm New Password')}
               </label>
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Re-type new password"
+                placeholder={t('Re-type new password')}
                 className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 font-mono focus:ring-2 focus:ring-teal-700 focus:outline-hidden"
               />
             </div>
@@ -207,7 +207,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
               onClick={onClose}
               className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
             >
-              Cancel
+              {t('Cancel')}
             </button>
             <button
               type="submit"
@@ -216,11 +216,11 @@ export default function EditProfileModal({ isOpen, onClose }) {
             >
               {isSubmitting ? (
                 <>
-                  <RefreshCw size={13} className="animate-spin" /> Saving...
+                  <RefreshCw size={13} className="animate-spin" /> {t('Saving...')}
                 </>
               ) : (
                 <>
-                  <Check size={14} /> Save Profile
+                  <Check size={14} /> {t('Save Profile')}
                 </>
               )}
             </button>

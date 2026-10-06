@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { api } from '../services/api';
+import { translate } from '../i18n/translations';
 
 export const AppContext = createContext(null);
 
@@ -11,6 +12,38 @@ export const AppProvider = ({ children }) => {
   const [alertCount, setAlertCount] = useState(0);
   const [connectivity, setConnectivity] = useState('Online');
   const [lastSync, setLastSync] = useState(new Date().toISOString());
+  const [language, setLanguageState] = useState(() => {
+    try {
+      return localStorage.getItem('flink_lang') || 'en';
+    } catch {
+      return 'en';
+    }
+  });
+
+  const setLanguage = (lang) => {
+    setLanguageState(lang);
+    try {
+      localStorage.setItem('flink_lang', lang);
+    } catch (e) {
+      console.warn('Could not save language to localStorage', e);
+    }
+  };
+
+  const toggleLanguage = () => {
+    setLanguageState(prev => {
+      const next = prev === 'en' ? 'hi' : 'en';
+      try {
+        localStorage.setItem('flink_lang', next);
+      } catch (e) {
+        console.warn('Could not save language to localStorage', e);
+      }
+      return next;
+    });
+  };
+
+  const t = useCallback((keyOrText) => {
+    return translate(keyOrText, language);
+  }, [language]);
 
   // Check existing session on mount (Strictly sessionStorage so new window/tab opens login portal first)
   useEffect(() => {
@@ -107,7 +140,8 @@ export const AppProvider = ({ children }) => {
   return (
     <AppContext.Provider value={{
       user, isAuthenticated, login, logout, updateUser,
-      alerts, alertCount, connectivity, lastSync, refreshData, loading
+      alerts, alertCount, connectivity, lastSync, refreshData, loading,
+      language, setLanguage, toggleLanguage, t
     }}>
       {children}
     </AppContext.Provider>

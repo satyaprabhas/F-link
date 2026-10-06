@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { FileText, Search, Download, Filter, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { useAppContext } from '../context/AppContext';
 
 const AuditLogPage = () => {
+  const { t } = useAppContext() || { t: k => k };
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -88,22 +90,22 @@ const AuditLogPage = () => {
         <div>
           <h1 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <FileText className="text-teal-700" size={22} />
-            Command Center Audit Trail
+            {t('Command Center Audit Trail')}
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">Immutable event provenance, officer approvals &amp; system state modifications</p>
+          <p className="text-xs text-slate-500 mt-0.5">{t('Immutable event provenance, officer approvals & system state modifications')}</p>
         </div>
         <div className="flex items-center gap-2">
           <button 
             onClick={fetchLogs} 
             className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-teal-700 flex items-center gap-1.5 shadow-2xs transition-colors"
           >
-            <RefreshCw size={13} className="text-teal-700" /> Refresh
+            <RefreshCw size={13} className="text-teal-700" /> {t('Refresh')}
           </button>
           <button 
             onClick={handleExportCSV}
             className="bg-white border border-slate-300 hover:border-teal-700 hover:bg-slate-50 text-slate-700 px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors text-xs font-semibold shadow-2xs"
           >
-            <Download size={14} className="text-teal-700" /> Export CSV
+            <Download size={14} className="text-teal-700" /> {t('Export CSV')}
           </button>
         </div>
       </div>
@@ -112,14 +114,14 @@ const AuditLogPage = () => {
       <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-wrap gap-3 items-center shadow-sm">
         <div className="flex items-center gap-1.5 text-slate-500 text-xs font-semibold">
           <Filter size={15} className="text-teal-700" />
-          <span>Filters:</span>
+          <span>{t('Filter')}:</span>
         </div>
         
         <div className="relative">
           <Search size={13} className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-slate-400" />
           <input 
             type="text" 
-            placeholder="Search by operator..." 
+            placeholder={t('Search by operator...')} 
             value={userFilter}
             onChange={(e) => {setUserFilter(e.target.value); setPage(1);}}
             className="bg-slate-50 border border-slate-300 text-slate-900 rounded-lg py-1.5 pl-8 pr-3 text-xs w-44 focus:outline-none focus:border-teal-700"
@@ -131,7 +133,7 @@ const AuditLogPage = () => {
           onChange={e => {setActionFilter(e.target.value); setPage(1);}}
           className="bg-slate-50 border border-slate-300 text-slate-900 rounded-lg py-1.5 px-3 text-xs font-medium focus:outline-none focus:border-teal-700"
         >
-          {actions.map(a => <option key={a} value={a}>{a === 'All' ? 'All Operations' : a}</option>)}
+          {actions.map(a => <option key={a} value={a}>{a === 'All' ? t('All Operations') || t('All Actions') : t(a)}</option>)}
         </select>
 
         <select 
@@ -139,11 +141,11 @@ const AuditLogPage = () => {
           onChange={e => {setCategoryFilter(e.target.value); setPage(1);}}
           className="bg-slate-50 border border-slate-300 text-slate-900 rounded-lg py-1.5 px-3 text-xs font-medium focus:outline-none focus:border-teal-700"
         >
-          {categories.map(c => <option key={c} value={c}>{c === 'All' ? 'All Modules' : c}</option>)}
+          {categories.map(c => <option key={c} value={c}>{c === 'All' ? t('All Modules') : t(c)}</option>)}
         </select>
         
         <div className="ml-auto text-xs text-slate-500 font-medium">
-          Showing <span className="font-bold text-slate-800">{filteredLogs.length}</span> recorded events
+          {t('Showing')} <span className="font-bold text-slate-800">{filteredLogs.length}</span> {t('entries')}
         </div>
       </div>
 
@@ -153,36 +155,36 @@ const AuditLogPage = () => {
           <table className="w-full text-left border-collapse whitespace-nowrap text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-semibold">
-                <th className="py-3 px-4">Event Timestamp</th>
-                <th className="py-3 px-3">Operator ID</th>
-                <th className="py-3 px-3">Role</th>
-                <th className="py-3 px-3">Action</th>
-                <th className="py-3 px-3">Module</th>
-                <th className="py-3 px-4 w-1/4">Event Summary</th>
-                <th className="py-3 px-3">Location</th>
-                <th className="py-3 px-3">Previous State</th>
-                <th className="py-3 px-4">New State</th>
+                <th className="py-3 px-4">{t('Event Timestamp')}</th>
+                <th className="py-3 px-3">{t('Operator ID')}</th>
+                <th className="py-3 px-3">{t('Assigned Role')}</th>
+                <th className="py-3 px-3">{t('Action')}</th>
+                <th className="py-3 px-3">{t('Category')}</th>
+                <th className="py-3 px-4 w-1/4">{t('Event Summary')}</th>
+                <th className="py-3 px-3">{t('Location:')}</th>
+                <th className="py-3 px-3">{t('Previous State')}</th>
+                <th className="py-3 px-4">{t('New State')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan="9" className="p-8 text-center text-slate-400">Loading audit history...</td></tr>
+                <tr><td colSpan="9" className="p-8 text-center text-slate-400">{t('Loading')}...</td></tr>
               ) : paginatedLogs.length === 0 ? (
-                <tr><td colSpan="9" className="p-8 text-center text-slate-400">No audit records found matching criteria.</td></tr>
+                <tr><td colSpan="9" className="p-8 text-center text-slate-400">{t('No audit entries found matching criteria.')}</td></tr>
               ) : (
                 paginatedLogs.map(log => (
                   <tr key={log.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-3 px-4 text-xs text-slate-500 font-mono">{new Date(log.timestamp).toLocaleString()}</td>
                     <td className="py-3 px-3 font-semibold text-slate-900">{log.user}</td>
-                    <td className="py-3 px-3 text-xs text-slate-500 font-medium">{log.role || '-'}</td>
+                    <td className="py-3 px-3 text-xs text-slate-500 font-medium">{t(log.role || '-')}</td>
                     <td className="py-3 px-3">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border tracking-wider uppercase ${getActionColor(log.action)}`}>
-                        {log.action}
+                        {t(log.action)}
                       </span>
                     </td>
-                    <td className="py-3 px-3 text-xs text-slate-600 font-semibold">{log.category}</td>
-                    <td className="py-3 px-4 text-xs text-slate-700 truncate max-w-xs font-medium" title={log.details}>{log.details}</td>
-                    <td className="py-3 px-3 text-xs text-slate-500 font-mono">{log.location || '-'}</td>
+                    <td className="py-3 px-3 text-xs text-slate-600 font-semibold">{t(log.category)}</td>
+                    <td className="py-3 px-4 text-xs text-slate-700 truncate max-w-xs font-medium" title={log.details}>{t(log.details)}</td>
+                    <td className="py-3 px-3 text-xs text-slate-500 font-mono">{t(log.location || '-')}</td>
                     <td className="py-3 px-3 text-xs font-mono text-slate-400 truncate max-w-[130px]" title={String(log.previous_value || '')}>{log.previous_value || '-'}</td>
                     <td className="py-3 px-4 text-xs font-mono text-teal-800 font-medium truncate max-w-[130px]" title={String(log.new_value || '')}>{log.new_value || '-'}</td>
                   </tr>
@@ -195,7 +197,7 @@ const AuditLogPage = () => {
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="p-3 border-t border-slate-200 bg-slate-50 flex justify-between items-center text-xs">
-            <span className="text-slate-500">Page <span className="font-bold text-slate-700">{page}</span> of {totalPages}</span>
+            <span className="text-slate-500">{t('Page')} <span className="font-bold text-slate-700">{page}</span> {t('of')} {totalPages}</span>
             <div className="flex gap-1.5">
               <button 
                 onClick={() => setPage(p => Math.max(1, p - 1))}

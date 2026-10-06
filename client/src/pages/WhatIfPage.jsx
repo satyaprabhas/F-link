@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { Activity, Sliders, AlertTriangle, ArrowRight, Save, RotateCcw, MapPin, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { useAppContext } from '../context/AppContext';
 
 export default function WhatIfPage() {
+  const { t } = useAppContext() || { t: k => k };
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState('');
   
@@ -74,11 +76,11 @@ export default function WhatIfPage() {
       <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl flex items-center justify-between text-xs text-amber-900 shadow-2xs">
         <div className="flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-          <span className="font-bold uppercase tracking-wider">Predictive Simulation Sandbox</span>
-          <span className="text-amber-800">— Changes simulated here do not alter live operational inventory or scheduled deliveries.</span>
+          <span className="font-bold uppercase tracking-wider">{t('Predictive Simulation Sandbox')}</span>
+          <span className="text-amber-800">{t('— Changes simulated here do not alter live operational inventory or scheduled deliveries.')}</span>
         </div>
         <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded font-bold uppercase text-[10px]">
-          Sandbox
+          {t('Sandbox')}
         </span>
       </div>
 
@@ -86,9 +88,9 @@ export default function WhatIfPage() {
         <div>
           <h1 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <Activity className="text-teal-700" size={22} />
-            "What-If" Logistics Simulator
+            {t('"What-If" Logistics Simulator')}
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">Test hypothetical consumption surges, severe weather events &amp; supply disruptions</p>
+          <p className="text-xs text-slate-500 mt-0.5">{t('Test hypothetical consumption surges, severe weather events & supply disruptions')}</p>
         </div>
       </div>
 
@@ -97,26 +99,26 @@ export default function WhatIfPage() {
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm overflow-y-auto">
           <div className="flex justify-between items-center mb-5 pb-2.5 border-b border-slate-100">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Sliders size={16} className="text-teal-700" /> Scenario Parameters
+              <Sliders size={16} className="text-teal-700" /> {t('Scenario Parameters')}
             </h2>
-            <span className="text-xs text-slate-400">Input Variables</span>
+            <span className="text-xs text-slate-400">{t('Input Variables')}</span>
           </div>
           
           <div className="space-y-5">
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">Target Location</label>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">{t('Base / Location:')}</label>
               <select 
                 value={selectedLocation} 
                 onChange={(e) => setSelectedLocation(e.target.value)} 
                 className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm text-slate-900 font-medium focus:outline-none focus:border-teal-700"
               >
-                {locations.map(l => <option key={l.id} value={l.id}>{l.name} ({l.type})</option>)}
+                {locations.map(l => <option key={l.id} value={l.id}>{t(l.name)} ({t(l.type)})</option>)}
               </select>
             </div>
 
             <div className="bg-slate-50/70 p-3.5 rounded-lg border border-slate-200 space-y-1">
               <div className="flex justify-between text-xs font-bold text-slate-700">
-                <span>Surge / Deplete Inventory (%)</span>
+                <span>{t('Inventory Level Offset (%):')}</span>
                 <span className="text-teal-800 font-mono">{params.inventory_change > 0 ? '+' : ''}{params.inventory_change}%</span>
               </div>
               <input 
@@ -126,15 +128,15 @@ export default function WhatIfPage() {
                 className="w-full accent-teal-700 cursor-pointer" 
               />
               <div className="flex justify-between text-[10px] text-slate-400">
-                <span>-50% Stock</span>
-                <span>Baseline</span>
-                <span>+50% Stock</span>
+                <span>-50% {t('Current Stock')}</span>
+                <span>{t('Current Baseline')}</span>
+                <span>+50% {t('Current Stock')}</span>
               </div>
             </div>
 
             <div className="bg-slate-50/70 p-3.5 rounded-lg border border-slate-200 space-y-1">
               <div className="flex justify-between text-xs font-bold text-slate-700">
-                <span>Daily Consumption Rate Spike (%)</span>
+                <span>{t('Consumption Rate Change (%):')}</span>
                 <span className="text-amber-700 font-mono">{params.consumption_change > 0 ? '+' : ''}{params.consumption_change}%</span>
               </div>
               <input 
@@ -144,31 +146,31 @@ export default function WhatIfPage() {
                 className="w-full accent-teal-700 cursor-pointer" 
               />
               <div className="flex justify-between text-[10px] text-slate-400">
-                <span>-50% Demand</span>
-                <span>Baseline</span>
-                <span>+100% Demand</span>
+                <span>-50% {t('Demand Risk')}</span>
+                <span>{t('Current Baseline')}</span>
+                <span>+100% {t('Demand Risk')}</span>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">Weather Severity Simulation</label>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">{t('Weather Severity Condition:')}</label>
               <select 
                 value={params.weather_severity} 
                 onChange={(e) => handleParamChange('weather_severity', e.target.value)} 
                 className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm text-slate-900 font-medium focus:outline-none focus:border-teal-700"
               >
-                <option value="current">Current Forecast (Standard)</option>
-                <option value="Normal">Normal Clear Skies</option>
-                <option value="Low">Low Risk (Minor overcast)</option>
-                <option value="Moderate">Moderate (Rain &amp; wind)</option>
-                <option value="High">High Risk (Heavy precipitation)</option>
-                <option value="Severe">Severe Storm (Disruptive road washout)</option>
+                <option value="current">{t('Current Baseline')}</option>
+                <option value="Normal">{t('Normal (Clear)')}</option>
+                <option value="Low">{t('Low Risk')}</option>
+                <option value="Moderate">{t('Moderate Hazards')}</option>
+                <option value="High">{t('High Severity')}</option>
+                <option value="Severe">{t('Severe Storm')}</option>
               </select>
             </div>
 
             <div className="grid grid-cols-2 gap-3 pt-1">
               <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
-                <span className="text-xs font-semibold text-slate-700">Route Open</span>
+                <span className="text-xs font-semibold text-slate-700">{t('Route Accessibility:')}</span>
                 <button 
                   type="button"
                   onClick={() => handleParamChange('route_available', !params.route_available)} 
@@ -179,7 +181,7 @@ export default function WhatIfPage() {
               </div>
 
               <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
-                <span className="text-xs font-semibold text-slate-700">Fleet Ready</span>
+                <span className="text-xs font-semibold text-slate-700">{t('Vehicle Fleet Operational:')}</span>
                 <button 
                   type="button"
                   onClick={() => handleParamChange('vehicle_available', !params.vehicle_available)} 
@@ -192,8 +194,8 @@ export default function WhatIfPage() {
 
             <div className="bg-slate-50/70 p-3.5 rounded-lg border border-slate-200 space-y-1">
               <div className="flex justify-between text-xs font-bold text-slate-700">
-                <span>Delivery Date Reschedule (Days Offset)</span>
-                <span className="text-teal-800 font-mono">{params.delivery_date_offset > 0 ? `+${params.delivery_date_offset}` : params.delivery_date_offset} days</span>
+                <span>{t('Delivery Date Offset (Days):')}</span>
+                <span className="text-teal-800 font-mono">{params.delivery_date_offset > 0 ? `+${params.delivery_date_offset}` : params.delivery_date_offset} {t('days')}</span>
               </div>
               <input 
                 type="range" min="-3" max="5" step="1" 
@@ -202,9 +204,9 @@ export default function WhatIfPage() {
                 className="w-full accent-teal-700 cursor-pointer" 
               />
               <div className="flex justify-between text-[10px] text-slate-400">
-                <span>Advance 3d</span>
-                <span>Scheduled</span>
-                <span>Delay 5d</span>
+                <span>-3 {t('days')}</span>
+                <span>{t('Current Baseline')}</span>
+                <span>+5 {t('days')}</span>
               </div>
             </div>
 
@@ -214,7 +216,7 @@ export default function WhatIfPage() {
                 onClick={handleReset} 
                 className="flex-1 py-2.5 rounded-lg bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex justify-center items-center gap-1.5 transition-colors"
               >
-                <RotateCcw size={14} /> Reset
+                <RotateCcw size={14} /> {t('Reset Baseline')}
               </button>
               <button 
                 type="button"
@@ -222,7 +224,7 @@ export default function WhatIfPage() {
                 disabled={loading} 
                 className="flex-2 py-2.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-xs flex justify-center items-center gap-1.5 transition-colors disabled:opacity-50"
               >
-                <Activity size={14} /> {loading ? 'Running Scenario...' : 'Execute Simulation'}
+                <Activity size={14} /> {loading ? t('Simulation Executing...') : t('Run Simulation')}
               </button>
             </div>
           </div>
@@ -232,26 +234,26 @@ export default function WhatIfPage() {
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm overflow-y-auto">
           <div className="flex justify-between items-center mb-5 pb-2.5 border-b border-slate-100">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Activity size={16} className="text-teal-700" /> Scenario Impact Assessment
+              <Activity size={16} className="text-teal-700" /> {t('Simulation Results & Impact Analysis')}
             </h2>
-            <span className="text-xs text-slate-400">Outcome Evaluation</span>
+            <span className="text-xs text-slate-400">{t('Outcome Evaluation')}</span>
           </div>
           
-          {error && <div className="text-red-700 bg-red-50 p-3 rounded-lg text-xs border border-red-200 mb-4">{error}</div>}
+          {error && <div className="text-red-700 bg-red-50 p-3 rounded-lg text-xs border border-red-200 mb-4">{t(error)}</div>}
           
           {!results && !loading && !error && (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 space-y-3">
               <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
                 <Sliders size={22} />
               </div>
-              <p className="text-xs font-medium">Select a location and execute simulation to review impact comparison.</p>
+              <p className="text-xs font-medium">{t('Run a simulation using the left panel to project supply & weather outcomes.')}</p>
             </div>
           )}
 
           {loading && (
             <div className="h-64 flex flex-col items-center justify-center text-teal-800 space-y-3">
               <RefreshCw className="animate-spin text-teal-700" size={24} />
-              <p className="text-xs font-semibold">Recalculating multi-factor supply risks...</p>
+              <p className="text-xs font-semibold">{t('Simulation Executing...')}</p>
             </div>
           )}
 
@@ -261,17 +263,17 @@ export default function WhatIfPage() {
               <div className="grid grid-cols-2 gap-4">
                 {/* Current */}
                 <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
-                  <h3 className="text-[11px] text-slate-500 uppercase font-bold tracking-wider mb-1.5">Current Plan Baseline</h3>
+                  <h3 className="text-[11px] text-slate-500 uppercase font-bold tracking-wider mb-1.5">{t('Live Operational Baseline')}</h3>
                   <div className="text-2xl font-extrabold text-slate-900">{results.current.overall_risk}%</div>
                   <div className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold border my-2 ${getRiskBadge(results.current.risk_level)}`}>
-                    {results.current.risk_level} Risk
+                    {t(results.current.risk_level)} {t('Risk Level')}
                   </div>
                   <div className="space-y-1.5 text-xs pt-1">
                     {results.current.inventory?.slice(0, 4).map((inv, idx) => (
                       <div key={idx} className="flex justify-between border-t border-slate-200/60 pt-1 text-slate-600">
-                        <span>{inv.item}:</span>
+                        <span>{t(inv.item)}:</span>
                         <span className={`font-mono ${inv.days_remaining <= 2 ? 'text-red-600 font-bold' : 'text-slate-800'}`}>
-                          {inv.days_remaining}d
+                          {inv.days_remaining} {t('days')}
                         </span>
                       </div>
                     ))}
@@ -280,18 +282,18 @@ export default function WhatIfPage() {
 
                 {/* Simulated */}
                 <div className="bg-teal-50/40 border-2 border-teal-600 p-4 rounded-xl relative">
-                  <div className="absolute top-0 right-0 bg-teal-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg uppercase">Simulated</div>
-                  <h3 className="text-[11px] text-teal-800 uppercase font-bold tracking-wider mb-1.5">Simulated Outcome</h3>
+                  <div className="absolute top-0 right-0 bg-teal-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg uppercase">{t('Sandbox')}</div>
+                  <h3 className="text-[11px] text-teal-800 uppercase font-bold tracking-wider mb-1.5">{t('Simulated Scenario Outcome')}</h3>
                   <div className="text-2xl font-extrabold text-slate-900">{results.simulated.overall_risk}%</div>
                   <div className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold border my-2 ${getRiskBadge(results.simulated.risk_level)}`}>
-                    {results.simulated.risk_level} Risk
+                    {t(results.simulated.risk_level)} {t('Risk Level')}
                   </div>
                   <div className="space-y-1.5 text-xs pt-1">
                     {results.simulated.inventory?.slice(0, 4).map((inv, idx) => (
                       <div key={idx} className="flex justify-between border-t border-teal-200/60 pt-1 text-slate-700">
-                        <span>{inv.item}:</span>
+                        <span>{t(inv.item)}:</span>
                         <span className={`font-mono font-bold ${inv.days_remaining <= 2 ? 'text-red-600' : 'text-teal-900'}`}>
-                          {inv.days_remaining}d
+                          {inv.days_remaining} {t('days')}
                         </span>
                       </div>
                     ))}
@@ -302,20 +304,20 @@ export default function WhatIfPage() {
               {/* Risk Change Bar */}
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Risk Level Comparison</h3>
+                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">{t('Factor Dimension Breakdown')}</h3>
                   <span className={`text-xs font-extrabold px-2 py-0.5 rounded border ${
                     results.comparison.risk_direction === 'worse' ? 'bg-red-50 text-red-700 border-red-200' : 
                     results.comparison.risk_direction === 'better' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
                     'bg-slate-100 text-slate-600 border-slate-200'
                   }`}>
-                    {results.comparison.risk_direction.toUpperCase()} ({results.comparison.risk_change > 0 ? `+${results.comparison.risk_change}` : results.comparison.risk_change} pts)
+                    {t(results.comparison.risk_direction.toUpperCase())} ({results.comparison.risk_change > 0 ? `+${results.comparison.risk_change}` : results.comparison.risk_change} pts)
                   </span>
                 </div>
 
                 <div className="space-y-2 text-xs">
                   <div>
                     <div className="flex justify-between text-[11px] text-slate-500 mb-1">
-                      <span>Baseline:</span>
+                      <span>{t('Live Operational Baseline')}:</span>
                       <span className="font-mono font-bold">{results.current.overall_risk}%</span>
                     </div>
                     <div className="w-full bg-slate-200 rounded-full h-2">
@@ -324,7 +326,7 @@ export default function WhatIfPage() {
                   </div>
                   <div>
                     <div className="flex justify-between text-[11px] text-slate-500 mb-1">
-                      <span>Simulated:</span>
+                      <span>{t('Simulated Scenario Outcome')}:</span>
                       <span className="font-mono font-bold">{results.simulated.overall_risk}%</span>
                     </div>
                     <div className="w-full bg-slate-200 rounded-full h-2">
@@ -338,17 +340,17 @@ export default function WhatIfPage() {
               <div className="bg-teal-50 border border-teal-200 p-4 rounded-xl text-teal-900">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-teal-800 mb-1 flex items-center gap-1.5">
                   <CheckCircle size={15} className="text-teal-700" />
-                  Recommended Operational Action
+                  {t('Recommended Operational Action:')}
                 </h3>
-                <p className="text-xs font-medium leading-relaxed">{results.comparison.recommended_action}</p>
+                <p className="text-xs font-medium leading-relaxed">{t(results.comparison.recommended_action)}</p>
               </div>
 
               <button 
                 type="button"
                 className="w-full py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 text-xs font-semibold flex justify-center items-center gap-1.5 transition-colors" 
-                onClick={() => alert('Applying scenarios modifies live operational database records. In this decision-support demonstration, scenario testing is isolated to the sandbox.')}
+                onClick={() => alert(t('Applying scenarios modifies live operational database records. In this decision-support demonstration, scenario testing is isolated to the sandbox.'))}
               >
-                <Save size={14} /> Apply Scenario to Operational Plan (Restricted)
+                <Save size={14} /> {t('Apply Scenario to Live State')}
               </button>
             </div>
           )}

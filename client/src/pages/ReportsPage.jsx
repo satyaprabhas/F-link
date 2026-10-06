@@ -4,6 +4,7 @@ import {
   FileText, Download, Printer, Activity, Box, Truck, Map, CloudRain, 
   ShieldAlert, RefreshCw, BarChart2, CheckSquare 
 } from 'lucide-react';
+import { useAppContext } from '../context/AppContext';
 
 const reportTypes = [
   { id: 'inventory', name: 'Inventory Status', icon: <Box size={20} /> },
@@ -34,6 +35,7 @@ const exportCSV = (data, filename) => {
 };
 
 const ReportsPage = () => {
+  const { t } = useAppContext() || { t: k => k };
   const [activeReport, setActiveReport] = useState(null);
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -63,9 +65,9 @@ const ReportsPage = () => {
         <div>
           <h1 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <FileText className="text-teal-700" size={22} />
-            Executive Logistics Reports &amp; Exports
+            {t('Executive Logistics Reports & Exports')}
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">Generate formal operational summaries, print dossiers &amp; export CSV data</p>
+          <p className="text-xs text-slate-500 mt-0.5">{t('Generate formal operational summaries, print dossiers & export CSV data')}</p>
         </div>
       </div>
 
@@ -86,7 +88,7 @@ const ReportsPage = () => {
               <div className={`mb-2 p-2 rounded-lg ${isSelected ? 'bg-teal-100 text-teal-800' : 'bg-slate-100 text-slate-500'}`}>
                 {rt.icon}
               </div>
-              <span className="text-xs leading-tight">{rt.name}</span>
+              <span className="text-xs leading-tight">{t(rt.name)}</span>
             </button>
           );
         })}
@@ -95,13 +97,13 @@ const ReportsPage = () => {
       {loading && (
         <div className="flex justify-center items-center py-16 text-slate-500 bg-white border border-slate-200 rounded-xl shadow-sm">
           <RefreshCw size={22} className="animate-spin mr-2 text-teal-700" />
-          <span className="text-xs font-semibold">Compiling logistics report dossier...</span>
+          <span className="text-xs font-semibold">{t('Compiling logistics report dossier...')}</span>
         </div>
       )}
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-medium">
-          {error}
+          {t(error)}
         </div>
       )}
 
@@ -110,17 +112,17 @@ const ReportsPage = () => {
           <div className="p-5 border-b border-slate-200 bg-slate-50/75 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 uppercase tracking-wider">
-                Official Report
+                {t('Official Report')}
               </span>
-              <h2 className="text-base font-extrabold text-slate-900 mt-1">{reportData.title || activeReport.name}</h2>
-              <p className="text-xs text-slate-400 font-mono">Dossier Timestamp: {new Date(reportData.generated_at || Date.now()).toLocaleString()}</p>
+              <h2 className="text-base font-extrabold text-slate-900 mt-1">{t(reportData.title || activeReport.name)}</h2>
+              <p className="text-xs text-slate-400 font-mono">{t('Generated:')} {new Date(reportData.generated_at || Date.now()).toLocaleString()}</p>
             </div>
             
             <div className="flex items-center gap-2 print:hidden">
               <button 
                 onClick={handlePrint} 
                 className="p-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-700 transition-colors shadow-2xs"
-                title="Print Report"
+                title={t('Print Report')}
               >
                 <Printer size={16} />
               </button>
@@ -128,7 +130,7 @@ const ReportsPage = () => {
                 onClick={() => exportCSV(reportData.data, `${activeReport.id}_report`)} 
                 className="flex items-center px-3.5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
               >
-                <Download size={14} className="mr-1.5" /> Export CSV
+                <Download size={14} className="mr-1.5" /> {t('Export CSV')}
               </button>
             </div>
           </div>
@@ -137,7 +139,7 @@ const ReportsPage = () => {
             <div className="p-4 border-b border-slate-200 bg-slate-50/40 grid grid-cols-2 md:grid-cols-4 gap-3">
               {Object.entries(reportData.summary).map(([key, val]) => (
                 <div key={key} className="p-3 border border-slate-200 rounded-lg bg-white shadow-2xs">
-                  <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">{key.replace(/_/g, ' ')}</div>
+                  <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">{t(key.replace(/_/g, ' '))}</div>
                   <div className="text-base font-extrabold text-slate-900 font-mono">{String(val)}</div>
                 </div>
               ))}
@@ -150,7 +152,7 @@ const ReportsPage = () => {
                 <thead>
                   <tr className="uppercase bg-slate-50 text-slate-500 border-b border-slate-200 font-semibold tracking-wider">
                     {Object.keys(reportData.data[0] || {}).filter(k => typeof (reportData.data[0] || {})[k] !== 'object').map(h => (
-                      <th key={h} className="px-4 py-2.5">{h.replace(/_/g, ' ')}</th>
+                      <th key={h} className="px-4 py-2.5">{t(h.replace(/_/g, ' '))}</th>
                     ))}
                   </tr>
                 </thead>
@@ -158,14 +160,14 @@ const ReportsPage = () => {
                   {reportData.data.map((row, i) => (
                     <tr key={i} className="hover:bg-slate-50 transition-colors">
                       {Object.keys(row || {}).filter(k => typeof (row || {})[k] !== 'object').map(h => (
-                        <td key={h} className="px-4 py-2.5 font-medium text-slate-700">{String((row || {})[h] ?? '-')}</td>
+                        <td key={h} className="px-4 py-2.5 font-medium text-slate-700">{t(String((row || {})[h] ?? '-'))}</td>
                       ))}
                     </tr>
                   ))}
                 </tbody>
               </table>
             ) : (
-              <div className="text-center py-12 text-slate-400 text-xs">No records available for this report type.</div>
+              <div className="text-center py-12 text-slate-400 text-xs">{t('No records available for this report type.')}</div>
             )}
           </div>
         </div>

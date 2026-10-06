@@ -4,7 +4,7 @@ import { useAppContext } from '../context/AppContext';
 import { Bell, Filter, CheckCircle, AlertTriangle, AlertCircle, Info, Clock, RefreshCw } from 'lucide-react';
 
 const AlertsPage = () => {
-  const { refreshData } = useAppContext();
+  const { refreshData, t } = useAppContext() || { t: k => k };
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -80,15 +80,15 @@ const AlertsPage = () => {
         <div>
           <h1 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <Bell className="text-teal-700" size={22} />
-            Logistics Operational Alert Center
+            {t('Logistics Operational Alert Center')}
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">Automated threshold warnings, route disruption notifications &amp; incident management</p>
+          <p className="text-xs text-slate-500 mt-0.5">{t('Automated threshold warnings, route disruption notifications & incident management')}</p>
         </div>
         <button 
           onClick={fetchAlerts} 
           className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-teal-700 flex items-center gap-1.5 shadow-2xs transition-colors"
         >
-          <RefreshCw size={13} className="text-teal-700" /> Refresh Alerts
+          <RefreshCw size={13} className="text-teal-700" /> {t('Refresh Alerts')}
         </button>
       </div>
 
@@ -96,28 +96,28 @@ const AlertsPage = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between border-t-4 border-t-red-600 shadow-sm">
           <div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Critical</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">{t('Critical')}</span>
             <span className="text-2xl font-extrabold text-red-600">{stats.Critical}</span>
           </div>
           <AlertTriangle className="text-red-500 opacity-60" size={24} />
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between border-t-4 border-t-orange-500 shadow-sm">
           <div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">High Priority</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">{t('High Priority') || t('High')}</span>
             <span className="text-2xl font-extrabold text-orange-600">{stats.High}</span>
           </div>
           <AlertCircle className="text-orange-500 opacity-60" size={24} />
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between border-t-4 border-t-amber-500 shadow-sm">
           <div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Medium</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">{t('Medium')}</span>
             <span className="text-2xl font-extrabold text-amber-600">{stats.Medium}</span>
           </div>
           <Info className="text-amber-500 opacity-60" size={24} />
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between border-t-4 border-t-teal-600 shadow-sm">
           <div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Low / Info</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">{t('Low')}</span>
             <span className="text-2xl font-extrabold text-teal-700">{stats.Low}</span>
           </div>
           <CheckCircle className="text-teal-600 opacity-60" size={24} />
@@ -128,7 +128,7 @@ const AlertsPage = () => {
       <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-wrap gap-3 items-center shadow-sm">
         <div className="flex items-center gap-1.5 text-slate-500 text-xs font-semibold mr-2">
           <Filter size={15} className="text-teal-700" />
-          <span>Filters:</span>
+          <span>{t('Filter')}:</span>
         </div>
         
         <select 
@@ -136,11 +136,11 @@ const AlertsPage = () => {
           onChange={e => setFilterSeverity(e.target.value)}
           className="bg-slate-50 border border-slate-300 text-slate-900 rounded-lg py-1.5 px-3 text-xs font-medium focus:outline-none focus:border-teal-700"
         >
-          <option value="All">All Severities</option>
-          <option value="Critical">Critical</option>
-          <option value="High">High</option>
-          <option value="Medium">Medium</option>
-          <option value="Low">Low</option>
+          <option value="All">{t('All Severities')}</option>
+          <option value="Critical">{t('Critical')}</option>
+          <option value="High">{t('High')}</option>
+          <option value="Medium">{t('Medium')}</option>
+          <option value="Low">{t('Low')}</option>
         </select>
 
         <select 
@@ -148,10 +148,10 @@ const AlertsPage = () => {
           onChange={e => setFilterStatus(e.target.value)}
           className="bg-slate-50 border border-slate-300 text-slate-900 rounded-lg py-1.5 px-3 text-xs font-medium focus:outline-none focus:border-teal-700"
         >
-          <option value="All">All Statuses</option>
-          <option value="New">New / Unacknowledged</option>
-          <option value="Acknowledged">Acknowledged</option>
-          <option value="Resolved">Resolved</option>
+          <option value="All">{t('All Statuses')}</option>
+          <option value="New">{t('New')}</option>
+          <option value="Acknowledged">{t('Acknowledged')}</option>
+          <option value="Resolved">{t('Resolved')}</option>
         </select>
 
         <select 
@@ -159,7 +159,7 @@ const AlertsPage = () => {
           onChange={e => setFilterType(e.target.value)}
           className="bg-slate-50 border border-slate-300 text-slate-900 rounded-lg py-1.5 px-3 text-xs font-medium focus:outline-none focus:border-teal-700"
         >
-          {types.map(t => <option key={t} value={t}>{t === 'All' ? 'All Alert Types' : t}</option>)}
+          {types.map(typeVal => <option key={typeVal} value={typeVal}>{typeVal === 'All' ? t('All Alert Types') : t(typeVal)}</option>)}
         </select>
       </div>
 
@@ -167,11 +167,11 @@ const AlertsPage = () => {
       <div className="space-y-3">
         {loading ? (
           <div className="p-12 text-center text-slate-500 bg-white border border-slate-200 rounded-xl flex items-center justify-center gap-2 shadow-sm">
-            <RefreshCw className="animate-spin text-teal-700" size={18} /> Loading incident logs...
+            <RefreshCw className="animate-spin text-teal-700" size={18} /> {t('Loading')}...
           </div>
         ) : filteredAlerts.length === 0 ? (
           <div className="p-12 text-center text-slate-400 bg-white border border-slate-200 rounded-xl text-xs font-medium shadow-sm">
-            No alerts found matching current filter parameters.
+            {t('No alerts match criteria')}
           </div>
         ) : (
           filteredAlerts.map(alert => {
@@ -185,23 +185,23 @@ const AlertsPage = () => {
                   <div className="mt-0.5 shrink-0">{styles.icon}</div>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-sm text-slate-900">{alert.title}</h3>
+                      <h3 className="font-bold text-sm text-slate-900">{t(alert.title)}</h3>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${styles.badge}`}>
-                        {alert.severity}
+                        {t(alert.severity)}
                       </span>
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600">
-                        {alert.type}
+                        {t(alert.type)}
                       </span>
                       {alert.location_name && (
                         <span className="text-xs font-semibold text-teal-800 flex items-center gap-1">
-                          • {alert.location_name}
+                          • {t(alert.location_name)}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-700 leading-relaxed font-medium">{alert.message}</p>
+                    <p className="text-xs text-slate-700 leading-relaxed font-medium">{t(alert.message)}</p>
                     <div className="flex items-center gap-4 text-[11px] text-slate-400 pt-0.5">
                       <span className="flex items-center gap-1 font-mono"><Clock size={11} /> {new Date(alert.created_at).toLocaleString()}</span>
-                      {alert.status !== 'New' && <span>By: <span className="font-semibold text-slate-600">{alert.acknowledged_by || 'System'}</span></span>}
+                      {alert.status !== 'New' && <span>{t('Acknowledged by')}: <span className="font-semibold text-slate-600">{alert.acknowledged_by || 'System'}</span></span>}
                     </div>
                   </div>
                 </div>
@@ -212,7 +212,7 @@ const AlertsPage = () => {
                       onClick={() => handleAcknowledge(alert.id)}
                       className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 rounded-lg text-xs font-bold transition-colors shadow-2xs"
                     >
-                      Acknowledge
+                      {t('Acknowledge')}
                     </button>
                   )}
                   {alert.status === 'Acknowledged' && (
@@ -220,12 +220,12 @@ const AlertsPage = () => {
                       onClick={() => handleResolve(alert.id)}
                       className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors shadow-2xs"
                     >
-                      <CheckCircle size={13} /> Resolve Alert
+                      <CheckCircle size={13} /> {t('Resolve')}
                     </button>
                   )}
                   {alert.status === 'Resolved' && (
                     <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 flex items-center gap-1 font-bold px-2.5 py-1 rounded-full">
-                      <CheckCircle size={13} /> Resolved
+                      <CheckCircle size={13} /> {t('Resolved')}
                     </span>
                   )}
                 </div>

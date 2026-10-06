@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { useAppContext } from '../context/AppContext';
 import { 
   Map as MapIcon, AlertTriangle, Info, Navigation, RefreshCw, 
   Layers, ShieldAlert, CheckCircle2, ChevronRight, Eye, Radio,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 
 const GISMapPage = () => {
+  const { t } = useAppContext() || { t: k => k };
   const [locations, setLocations] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
@@ -83,10 +85,10 @@ const GISMapPage = () => {
         <div>
           <h1 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <MapIcon className="text-teal-700" size={22} />
-            Live Logistics &amp; Route Map
+            {t('Live Logistics & Route Map')}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Click any base or delivery route below to see current supplies, road conditions, and storm warnings.
+            {t('Click any base or delivery route below to see current supplies, road conditions, and storm warnings.')}
           </p>
         </div>
         
@@ -101,7 +103,7 @@ const GISMapPage = () => {
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              🗺️ Interactive Map
+              🗺️ {t('Interactive Map')}
             </button>
             <button
               onClick={() => setViewMode('tiles')}
@@ -111,7 +113,7 @@ const GISMapPage = () => {
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              🌍 Road / Terrain View
+              🌍 {t('Road / Terrain View')}
             </button>
           </div>
 
@@ -121,7 +123,7 @@ const GISMapPage = () => {
             title="Refresh map data"
           >
             <RefreshCw size={13} className={`text-teal-700 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+            {t('Refresh')}
           </button>
         </div>
       </div>
@@ -161,7 +163,7 @@ const GISMapPage = () => {
           {/* Critical Base Notice Badge on Map */}
           <div className="absolute top-3 right-3 z-30 bg-rose-50 border border-rose-200 text-rose-800 px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-2 text-xs">
             <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping"></span>
-            <span className="font-bold">Forward Charlie: Low Food (2 days left)</span>
+            <span className="font-bold">{t('Forward Charlie: Low Food (2 days left)')}</span>
           </div>
 
           {/* Interactive Vector Canvas Map (100% Reliable, works offline/online) */}
@@ -198,7 +200,7 @@ const GISMapPage = () => {
                     opacity="0.6" 
                   />
                   <text x="390" y="270" fill="#64748b" fontSize="11" fontWeight="bold" fontStyle="italic">
-                    ⛰️ Mountain Range (Storm Zone)
+                    ⛰️ {t('Mountain Range (Storm Zone)')}
                   </text>
 
                   {/* Routes Polylines */}
@@ -340,7 +342,7 @@ const GISMapPage = () => {
                           fontWeight="bold" 
                           textAnchor="middle"
                         >
-                          {loc.type === 'depot' ? 'DEPOT' : loc.type === 'supply_point' ? 'HUB' : 'BASE'}
+                          {loc.type === 'depot' ? t('DEPOT') : loc.type === 'supply_point' ? t('HUB') : t('BASE')}
                         </text>
 
                         {/* Base Name Box below */}
@@ -362,7 +364,7 @@ const GISMapPage = () => {
                           fontWeight="bold" 
                           textAnchor="middle"
                         >
-                          {loc.name}
+                          {t(loc.name)}
                         </text>
 
                         {/* Supply Remaining Badge */}
@@ -382,7 +384,7 @@ const GISMapPage = () => {
                           fontWeight="bold" 
                           textAnchor="middle"
                         >
-                          {loc.min_days_remaining !== null ? `${loc.min_days_remaining}d supply left` : 'Hub Storage'}
+                          {loc.min_days_remaining !== null ? `${loc.min_days_remaining}d ${t('supply left')}` : t('Hub Storage')}
                         </text>
                       </g>
                     );
@@ -396,16 +398,15 @@ const GISMapPage = () => {
                   <div className="w-12 h-12 rounded-full bg-teal-800 flex items-center justify-center mx-auto text-teal-300">
                     <Radio size={24} className="animate-pulse" />
                   </div>
-                  <h3 className="font-bold text-base">Road &amp; Terrain Satellite Mode</h3>
+                  <h3 className="font-bold text-base">{t('Road & Terrain Satellite Mode')}</h3>
                   <p className="text-xs text-slate-300">
-                    Showing sector coordinates: 34.05°N to 34.55°N, 71.35°E to 71.80°E.
-                    All roads and bases are active and synchronized with the latest delivery and weather sensors.
+                    {t('Showing sector coordinates: 34.05°N to 34.55°N, 71.35°E to 71.80°E. All roads and bases are active and synchronized with the latest delivery and weather sensors.')}
                   </p>
                   <button 
                     onClick={() => setViewMode('visual')}
                     className="px-4 py-2 bg-teal-600 hover:bg-teal-500 rounded-lg text-white font-bold text-xs shadow cursor-pointer"
                   >
-                    Switch back to Interactive Map
+                    {t('Switch back to Interactive Map')}
                   </button>
                 </div>
               </div>
@@ -415,16 +416,16 @@ const GISMapPage = () => {
           {/* Map Legend Bar at Bottom */}
           <div className="p-3 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between text-xs text-slate-600 gap-2">
             <div className="flex items-center gap-3">
-              <span className="font-bold text-slate-700">Legend:</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#0f766e]"></span> Main Depot</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#0284c7]"></span> Supply Staging Hub</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#16a34a]"></span> Forward Base (Healthy)</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#dc2626]"></span> Low Stock (&lt; 3 Days)</span>
+              <span className="font-bold text-slate-700">{t('Legend')}:</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#0f766e]"></span> {t('Main Depot')}</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#0284c7]"></span> {t('Supply Staging Hub')}</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#16a34a]"></span> {t('Forward Base (Healthy)')}</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#dc2626]"></span> {t('Low Stock (< 3 Days)')}</span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1.5"><span className="w-4 h-1 bg-[#16a34a]"></span> Clear Road</span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-1 bg-[#f59e0b]"></span> Rain / Caution</span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-1 bg-[#dc2626]"></span> Severe Storm Delay</span>
+              <span className="flex items-center gap-1.5"><span className="w-4 h-1 bg-[#16a34a]"></span> {t('Clear Road')}</span>
+              <span className="flex items-center gap-1.5"><span className="w-4 h-1 bg-[#f59e0b]"></span> {t('Rain / Caution')}</span>
+              <span className="flex items-center gap-1.5"><span className="w-4 h-1 bg-[#dc2626]"></span> {t('Severe Storm Delay')}</span>
             </div>
           </div>
         </div>
@@ -436,21 +437,21 @@ const GISMapPage = () => {
               <div className="flex justify-between items-start border-b border-slate-100 pb-3">
                 <div>
                   <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200">
-                    {selectedLoc.type?.replace('_', ' ')}
+                    {t(selectedLoc.type?.replace('_', ' '))}
                   </span>
-                  <h3 className="text-lg font-extrabold text-slate-900 mt-1">{selectedLoc.name}</h3>
-                  <p className="text-xs text-slate-500">{selectedLoc.region || 'Operational Sector'} • {selectedLoc.personnel || 0} Personnel</p>
+                  <h3 className="text-lg font-extrabold text-slate-900 mt-1">{t(selectedLoc.name)}</h3>
+                  <p className="text-xs text-slate-500">{t(selectedLoc.region || 'Operational Sector')} • {selectedLoc.personnel || 0} {t('Personnel')}</p>
                 </div>
                 {selectedLoc.min_days_remaining !== null && selectedLoc.min_days_remaining <= 3 && (
                   <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-bold rounded-lg flex items-center gap-1">
-                    <AlertTriangle size={13} /> Needs Resupply
+                    <AlertTriangle size={13} /> {t('Needs Resupply')}
                   </span>
                 )}
               </div>
 
               {/* Current Supplies Overview */}
               <div>
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Days of Supplies Left</h4>
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">{t('Days of Supplies Left')}</h4>
                 <div className="space-y-2.5">
                   {selectedLoc.inventory_summary && Object.entries(selectedLoc.inventory_summary).map(([category, item]) => {
                     const days = item.days_remaining;
@@ -463,10 +464,10 @@ const GISMapPage = () => {
                             {category === 'Water' && <Droplets size={14} className="text-sky-600" />}
                             {category === 'Medical' && <Heart size={14} className="text-rose-600" />}
                             {category === 'Fuel' && <Flame size={14} className="text-orange-600" />}
-                            {category}
+                            {t(category)}
                           </span>
                           <span className={isLow ? 'text-red-600 font-bold' : 'text-slate-800'}>
-                            {days} days left ({item.quantity?.toLocaleString()})
+                            {days} {t('days left')} ({item.quantity?.toLocaleString()})
                           </span>
                         </div>
                         {/* Progress bar */}
@@ -488,13 +489,13 @@ const GISMapPage = () => {
                   onClick={() => navigate('/recommendations')}
                   className="w-full py-2.5 px-3 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                 >
-                  View Suggested Resupply Actions <ArrowRight size={14} />
+                  {t('View Suggested Resupply Actions')} <ArrowRight size={14} />
                 </button>
                 <button
                   onClick={() => navigate('/inventory')}
                   className="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
                 >
-                  Edit Stock &amp; Daily Usage
+                  {t('Edit Stock & Daily Usage')}
                 </button>
               </div>
             </div>
@@ -502,47 +503,47 @@ const GISMapPage = () => {
             <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
               <div className="border-b border-slate-100 pb-3">
                 <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded bg-sky-50 text-sky-800 border border-sky-200">
-                  Delivery Route
+                  {t('Delivery Route')}
                 </span>
-                <h3 className="text-lg font-extrabold text-slate-900 mt-1">{selectedRoute.name} ({selectedRoute.id})</h3>
-                <p className="text-xs text-slate-500">{selectedRoute.distance} km • {selectedRoute.estimated_time} hours travel time</p>
+                <h3 className="text-lg font-extrabold text-slate-900 mt-1">{t(selectedRoute.name)} ({selectedRoute.id})</h3>
+                <p className="text-xs text-slate-500">{selectedRoute.distance} km • {selectedRoute.estimated_time} {t('hours travel time')}</p>
               </div>
 
               {/* Route Condition & Weather Risk */}
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between p-2.5 bg-slate-50 rounded-lg">
-                  <span className="text-slate-500">Route Status:</span>
-                  <span className="font-bold text-emerald-700">{selectedRoute.status}</span>
+                  <span className="text-slate-500">{t('Route Status')}:</span>
+                  <span className="font-bold text-emerald-700">{t(selectedRoute.status)}</span>
                 </div>
                 <div className="flex justify-between p-2.5 bg-slate-50 rounded-lg">
-                  <span className="text-slate-500">Terrain:</span>
-                  <span className="font-bold text-slate-800">{selectedRoute.terrain || 'Standard Roads'}</span>
+                  <span className="text-slate-500">{t('Terrain')}:</span>
+                  <span className="font-bold text-slate-800">{t(selectedRoute.terrain || 'Standard Roads')}</span>
                 </div>
                 <div className="flex justify-between p-2.5 bg-slate-50 rounded-lg">
-                  <span className="text-slate-500">Weather Risk:</span>
+                  <span className="text-slate-500">{t('Weather Risk')}:</span>
                   <span className={`font-bold ${selectedRoute.route_risk?.score > 50 ? 'text-red-600' : 'text-emerald-700'}`}>
-                    {selectedRoute.route_risk?.level || 'Normal'} ({selectedRoute.route_risk?.score || 0}/100)
+                    {t(selectedRoute.route_risk?.level || 'Normal')} ({selectedRoute.route_risk?.score || 0}/100)
                   </span>
                 </div>
               </div>
 
               {/* Road Segments */}
               <div>
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Road Sections</h4>
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">{t('Road Sections')}</h4>
                 <div className="space-y-1.5">
                   {(selectedRoute.segments || []).map((seg, idx) => (
                     <div key={idx} className="p-2 bg-slate-50 rounded-lg border border-slate-100 text-xs flex justify-between items-center">
                       <div>
-                        <div className="font-bold text-slate-800">{seg.name}</div>
-                        <div className="text-[11px] text-slate-400">{seg.distance} km • Road {seg.condition}</div>
+                        <div className="font-bold text-slate-800">{t(seg.name)}</div>
+                        <div className="text-[11px] text-slate-400">{seg.distance} km • {t('Road')} {t(seg.condition)}</div>
                       </div>
                       {seg.name.includes('Mountain') ? (
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 flex items-center gap-1">
-                          ⛈️ Heavy Storm
+                          ⛈️ {t('Heavy Storm')}
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                          Clear
+                          {t('Clear')}
                         </span>
                       )}
                     </div>
@@ -555,7 +556,7 @@ const GISMapPage = () => {
                 onClick={() => navigate('/weather-route')}
                 className="w-full py-2.5 px-3 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                Inspect Weather on this Route <ArrowRight size={14} />
+                {t('Inspect Weather on this Route')} <ArrowRight size={14} />
               </button>
             </div>
           ) : (
@@ -563,9 +564,9 @@ const GISMapPage = () => {
               <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center mx-auto text-teal-700">
                 <Info size={22} />
               </div>
-              <h3 className="font-bold text-sm text-slate-800">Select a Base or Road</h3>
+              <h3 className="font-bold text-sm text-slate-800">{t('Select a Base or Road')}</h3>
               <p className="text-xs text-slate-500">
-                Click any circle (Base) or line (Road) on the map to see remaining food, water, truck trips, and storm delays.
+                {t('Click any circle (Base) or line (Road) on the map to see remaining food, water, truck trips, and storm delays.')}
               </p>
             </div>
           )}
@@ -573,10 +574,10 @@ const GISMapPage = () => {
           {/* Quick Help Card */}
           <div className="p-4 bg-teal-50/70 border border-teal-200 rounded-xl text-xs space-y-1 text-teal-950">
             <div className="font-bold flex items-center gap-1.5 text-teal-900">
-              <Lightbulb size={14} className="text-teal-700" /> Quick Tip
+              <Lightbulb size={14} className="text-teal-700" /> {t('Quick Tip')}
             </div>
             <p className="text-slate-600">
-              If severe weather hits the main road, the system will suggest an earlier delivery or a safer bypass route.
+              {t('If severe weather hits the main road, the system will suggest an earlier delivery or a safer bypass route.')}
             </p>
           </div>
         </div>
